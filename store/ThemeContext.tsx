@@ -10,6 +10,7 @@ interface ThemeContextType {
   isDark: boolean;
   colors: ThemeColors;
   setThemeMode: (mode: ThemeMode) => void;
+  cycleThemeMode: () => ThemeMode;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -19,7 +20,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mode, setModeState] = useState<ThemeMode>('system');
 
   useEffect(() => {
-    Repository.loadThemeMode().then(saved => setModeState(saved));
+    Repository.loadThemeMode().then((saved) => {
+      if (saved) setModeState(saved);
+    });
   }, []);
 
   const setThemeMode = (newMode: ThemeMode) => {
@@ -27,11 +30,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     Repository.saveThemeMode(newMode);
   };
 
+  const cycleThemeMode = (): ThemeMode => {
+    let next: ThemeMode = 'dark';
+    if (mode === 'light') next = 'dark';
+    else if (mode === 'dark') next = 'system';
+    else if (mode === 'system') next = 'light';
+    setThemeMode(next);
+    return next;
+  };
+
   const isDark = mode === 'system' ? systemScheme === 'dark' : mode === 'dark';
   const colors = isDark ? DarkThemeColors : LightThemeColors;
 
   return (
-    <ThemeContext.Provider value={{ mode, isDark, colors, setThemeMode }}>
+    <ThemeContext.Provider value={{ mode, isDark, colors, setThemeMode, cycleThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );

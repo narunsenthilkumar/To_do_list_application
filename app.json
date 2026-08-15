@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.taskora.app"
+      "bundleIdentifier": "com.taskora.app",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Taskora uses speech recognition to create tasks from voice.",
+        "NSMicrophoneUsageDescription": "Taskora uses your microphone to transcribe voice tasks."
+      }
     },
     "android": {
       "package": "com.taskora.app",
@@ -22,7 +26,9 @@
       },
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
       ],
       "predictiveBackGestureEnabled": false
     },

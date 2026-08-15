@@ -25,6 +25,10 @@ export const safeHaptics = {
       await Haptics.selectionAsync();
     } catch {}
   },
+
+  impact: (style?: Haptics.ImpactFeedbackStyle) => safeHaptics.impactAsync(style),
+  notification: (type?: Haptics.NotificationFeedbackType) => safeHaptics.notificationAsync(type),
+  selection: () => safeHaptics.selectionAsync(),
 };
 
 export { Haptics };

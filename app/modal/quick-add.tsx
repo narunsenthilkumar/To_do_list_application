@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -39,6 +40,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTaskora, useTheme } from '../../store/useTaskora';
+import { safeHaptics } from '../../utils/haptics';
 import {
   NaturalLanguageParser,
   CategoryEngine,
@@ -131,9 +133,45 @@ export default function QuickAddModal() {
     }
   }, [rawText, smartSettings.smartParsingEnabled, smartSettings.smartRemindersEnabled]);
 
-  // Voice Recognition Handler
-  const startVoiceInput = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Voice Recognition Handler with Android Runtime Permission Check
+  const startVoiceInput = async () => {
+    safeHaptics.impact(Haptics.ImpactFeedbackStyle.Medium);
+
+    // 1. Check microphone permission state
+    let permStatus = await VoiceService.checkPermission();
+
+    // 2. Request permission if not yet granted
+    if (permStatus !== 'granted') {
+      permStatus = await VoiceService.requestPermission();
+    }
+
+    // 3. Handle Permission Blocked (Never Ask Again)
+    if (permStatus === 'blocked') {
+      Alert.alert(
+        'Microphone Access Needed',
+        'Microphone access is disabled for Taskora. You can enable it in system settings to capture tasks using your voice.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => VoiceService.openSettings() },
+        ]
+      );
+      return;
+    }
+
+    // 4. Handle Permission Denied (First time or Cancelled)
+    if (permStatus === 'denied') {
+      Alert.alert(
+        'Microphone Access Needed',
+        'Taskora needs microphone access to create tasks using your voice.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Try Again', onPress: () => startVoiceInput() },
+        ]
+      );
+      return;
+    }
+
+    // 5. Permission is GRANTED -> Start Voice Input
     setIsListening(true);
     setVoiceSpokenText('');
 
@@ -152,7 +190,7 @@ export default function QuickAddModal() {
         if (result.isFinal) {
           setRawText(result.text);
           setIsListening(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          safeHaptics.notification(Haptics.NotificationFeedbackType.Success);
         }
       },
       (error: string) => {
@@ -168,7 +206,7 @@ export default function QuickAddModal() {
   const cancelVoiceInput = () => {
     VoiceService.stopListening();
     setIsListening(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptics.impact(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleSave = async () => {

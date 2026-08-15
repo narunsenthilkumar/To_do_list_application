@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Search, Settings, Flame, Sun, Moon, Monitor, Check, Pin, Sparkles, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ import { useTaskora, useTheme, useSmartSuggestions } from '../../store/useTaskor
 import { ThemeMode } from '../../store/ThemeContext';
 import { Task } from '../../models/task';
 import { Repository, getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
+import { safeHaptics } from '../../utils/haptics';
 import { MAX_CONTENT_WIDTH } from '../../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../../theme/tokens';
 import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
@@ -371,11 +372,14 @@ export default function TodayScreen() {
       />
 
       {/* Theme Quick Switcher Popover Modal */}
-      <Modal visible={themePopoverVisible} transparent animationType="fade">
-        <AnimatedPressable
-          onPress={() => setThemePopoverVisible(false)}
-          style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}
-        >
+      <Modal
+        visible={themePopoverVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setThemePopoverVisible(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setThemePopoverVisible(false)} />
           <View
             style={[
               styles.popoverCard,
@@ -390,18 +394,21 @@ export default function TodayScreen() {
             {(['system', 'light', 'dark'] as ThemeMode[]).map((t) => {
               const isSelected = mode === t;
               return (
-                <AnimatedPressable
+                <Pressable
                   key={t}
-                  profile="smallControl"
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    safeHaptics.selection();
                     setThemeMode(t);
                     setThemePopoverVisible(false);
                   }}
-                  style={[
+                  style={({ pressed }) => [
                     styles.popoverOption,
                     {
-                      backgroundColor: isSelected ? colors.accent + '15' : 'transparent',
+                      backgroundColor: isSelected
+                        ? colors.accent + '18'
+                        : pressed
+                        ? colors.secondaryBackground
+                        : 'transparent',
                     },
                   ]}
                 >
@@ -423,11 +430,11 @@ export default function TodayScreen() {
                     </Text>
                   </View>
                   {isSelected && <Check size={18} color={colors.accent} />}
-                </AnimatedPressable>
+                </Pressable>
               );
             })}
           </View>
-        </AnimatedPressable>
+        </View>
       </Modal>
     </PrimarySurface>
   );

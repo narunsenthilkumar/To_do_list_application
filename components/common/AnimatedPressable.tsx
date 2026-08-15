@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ViewStyle, StyleProp } from 'react-native';
+import { Pressable, ViewStyle, StyleProp, Insets } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,6 +18,7 @@ interface AnimatedPressableProps {
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
   accessibilityLabel?: string;
+  hitSlop?: Insets | number;
 }
 
 export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
@@ -28,6 +29,7 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
   style,
   disabled = false,
   accessibilityLabel,
+  hitSlop,
 }) => {
   const scale = useSharedValue(1);
   const targetConfig = PressDepthProfiles[profile] || PressDepthProfiles.card;
@@ -63,6 +65,7 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled}
       accessibilityLabel={accessibilityLabel}
+      hitSlop={hitSlop}
     >
       <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
     </Pressable>
