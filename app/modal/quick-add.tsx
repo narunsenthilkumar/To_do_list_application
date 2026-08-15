@@ -1,0 +1,934 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Calendar,
+  Clock,
+  Folder,
+  Plus,
+  Check,
+  Sparkles,
+  X,
+  Mic,
+  MicOff,
+  Tag as TagIcon,
+  Flag,
+  Bell,
+  Timer,
+  ChevronDown,
+} from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+  FadeInDown,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { useTaskora, useTheme } from '../../store/useTaskora';
+import {
+  NaturalLanguageParser,
+  CategoryEngine,
+  SmartReminderEngine,
+  VoiceService,
+  VoiceResult,
+  ParsedTask,
+  CATEGORY_DEFINITIONS,
+} from '../../smart';
+import { PriorityLevel, RecurrenceFrequency, ReminderOption } from '../../models/task';
+import { getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
+import { Radii, Spacing, TypographyScale, Shadows } from '../../theme/tokens';
+import { MaterialLayers } from '../../theme/materials';
+import { SpringConfigs } from '../../theme/animations';
+import { AnimatedPressable } from '../../components/common/AnimatedPressable';
+
+export default function QuickAddModal() {
+  const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { addTask, projects, smartSettings } = useTaskora();
+
+  const [rawText, setRawText] = useState('');
+  const [parsedTask, setParsedTask] = useState<ParsedTask | null>(null);
+
+  const [dueDate, setDueDate] = useState<string | undefined>(getTodayDateString());
+  const [dueTime, setDueTime] = useState<string | undefined>(undefined);
+  const [priority, setPriority] = useState<PriorityLevel>('none');
+  const [category, setCategory] = useState<string>('General');
+  const [estimatedDuration, setEstimatedDuration] = useState<number>(30);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+  const [selectedTags] = useState<string[]>([]);
+  const [reminder, setReminder] = useState<ReminderOption>('none');
+  const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('never');
+  const [notes, setNotes] = useState('');
+  const [subtaskInput, setSubtaskInput] = useState('');
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean; createdAt: string }[]>([]);
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSpokenText, setVoiceSpokenText] = useState('');
+
+  // Reanimated Sheet Entrance Physics
+  const sheetTranslateY = useSharedValue(400);
+  const backdropOpacity = useSharedValue(0);
+
+  // Pulsing voice animation
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    sheetTranslateY.value = withSpring(0, SpringConfigs.modalSheet);
+    backdropOpacity.value = withTiming(1, { duration: 250 });
+  }, []);
+
+  const handleClose = () => {
+    if (isListening) {
+      VoiceService.stopListening();
+      setIsListening(false);
+    }
+    backdropOpacity.value = withTiming(0, { duration: 180 });
+    sheetTranslateY.value = withTiming(400, { duration: 220 }, (finished) => {
+      if (finished) {
+        router.back();
+      }
+    });
+  };
+
+  // Live NLP Parsing effect
+  useEffect(() => {
+    if (rawText.trim()) {
+      const parsed = NaturalLanguageParser.parse(rawText);
+      setParsedTask(parsed);
+
+      if (smartSettings.smartParsingEnabled) {
+        if (parsed.dueDate) setDueDate(parsed.dueDate);
+        if (parsed.dueTime) setDueTime(parsed.dueTime);
+        if (parsed.priority !== 'none') setPriority(parsed.priority);
+        if (parsed.category) setCategory(parsed.category);
+        if (parsed.estimatedDuration) setEstimatedDuration(parsed.estimatedDuration);
+        if (parsed.recurrence) setRecurrence(parsed.recurrence.frequency);
+
+        if (smartSettings.smartRemindersEnabled) {
+          const rec = SmartReminderEngine.recommendForParsed(parsed);
+          setReminder(rec.suggestedOption);
+        }
+      }
+    } else {
+      setParsedTask(null);
+    }
+  }, [rawText, smartSettings.smartParsingEnabled, smartSettings.smartRemindersEnabled]);
+
+  // Voice Recognition Handler
+  const startVoiceInput = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsListening(true);
+    setVoiceSpokenText('');
+
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.2, { duration: 600 }),
+        withTiming(0.9, { duration: 600 })
+      ),
+      -1,
+      true
+    );
+
+    VoiceService.startListening(
+      (result: VoiceResult) => {
+        setVoiceSpokenText(result.text);
+        if (result.isFinal) {
+          setRawText(result.text);
+          setIsListening(false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      },
+      (error: string) => {
+        console.warn('Voice recognition error:', error);
+        setIsListening(false);
+      },
+      () => {
+        setIsListening(false);
+      }
+    );
+  };
+
+  const cancelVoiceInput = () => {
+    VoiceService.stopListening();
+    setIsListening(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleSave = async () => {
+    const title = (parsedTask && smartSettings.smartParsingEnabled ? parsedTask.title : rawText.trim()) || rawText.trim();
+    if (!title) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // If user changed category from default, learn preference
+    if (parsedTask && parsedTask.category && category !== parsedTask.category) {
+      CategoryEngine.learnCorrection(title, category);
+    }
+
+    await addTask({
+      title,
+      notes,
+      dueDate,
+      dueTime,
+      priority,
+      category,
+      estimatedDuration,
+      projectId: selectedProjectId,
+      tags: selectedTags,
+      reminder,
+      recurrence: recurrence !== 'never' ? { frequency: recurrence } : undefined,
+      subtasks,
+    });
+
+    handleClose();
+  };
+
+  const handleAddSubtask = () => {
+    if (!subtaskInput.trim()) return;
+    setSubtasks([
+      ...subtasks,
+      {
+        id: `sub-${Date.now()}`,
+        title: subtaskInput.trim(),
+        completed: false,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setSubtaskInput('');
+  };
+
+  // Cycle handlers for interactive smart preview chips
+  const cycleDate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const today = getTodayDateString();
+    const tomorrow = getTomorrowDateString();
+    if (dueDate === today) setDueDate(tomorrow);
+    else if (dueDate === tomorrow) setDueDate(undefined);
+    else setDueDate(today);
+  };
+
+  const cyclePriority = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const levels: PriorityLevel[] = ['none', 'low', 'medium', 'high', 'urgent'];
+    const nextIdx = (levels.indexOf(priority) + 1) % levels.length;
+    setPriority(levels[nextIdx]);
+  };
+
+  const cycleCategory = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const names = CATEGORY_DEFINITIONS.map((c) => c.name);
+    const nextIdx = (names.indexOf(category) + 1) % names.length;
+    setCategory(names[nextIdx]);
+  };
+
+  const cycleDuration = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const options = [15, 30, 45, 60, 90, 120];
+    const nextIdx = (options.indexOf(estimatedDuration) + 1) % options.length;
+    setEstimatedDuration(options[nextIdx]);
+  };
+
+  const cycleReminder = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const options: ReminderOption[] = ['none', 'at_time', '15m_before', '30m_before', '1h_before', '1d_before'];
+    const nextIdx = (options.indexOf(reminder) + 1) % options.length;
+    setReminder(options[nextIdx]);
+  };
+
+  const bottomInset = Math.max(insets.bottom, 16);
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
+
+  const animatedPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  const isFormValid = rawText.trim().length > 0;
+  const currentCategoryIcon = CategoryEngine.getCategoryIcon(category);
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.overlayContainer}
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, animatedBackdropStyle]}>
+        <BlurView
+          intensity={MaterialLayers.glass.blurHigh}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.25)' },
+          ]}
+        />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.sheetContainer,
+          {
+            backgroundColor: isDark ? MaterialLayers.elevated.dark : colors.elevatedCard,
+            borderColor: isDark ? MaterialLayers.glass.borderDark : MaterialLayers.glass.borderLight,
+            paddingBottom: bottomInset,
+          },
+          Shadows.floating,
+          animatedSheetStyle,
+        ]}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Quick Task</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textTertiary }]}>
+              Natural language & voice capture
+            </Text>
+          </View>
+          <AnimatedPressable
+            onPress={handleClose}
+            profile="smallControl"
+            style={[styles.closeButton, { backgroundColor: colors.secondaryBackground }]}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </AnimatedPressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Main Integrated Title Input Surface + Mic Button */}
+          <View
+            style={[
+              styles.inputSurface,
+              {
+                backgroundColor: isInputFocused
+                  ? isDark
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : '#FFFFFF'
+                  : colors.secondaryBackground,
+                borderColor: isInputFocused
+                  ? colors.accent
+                    ? isDark
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.06)'
+                    : 'transparent'
+                  : 'transparent',
+              },
+            ]}
+          >
+            <TextInput
+              autoFocus
+              value={rawText}
+              onChangeText={setRawText}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
+              placeholder="What to do? (e.g. Finish Python assignment tomorrow at 7 PM)"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.titleInput, { color: colors.textPrimary }]}
+              multiline
+            />
+
+            {smartSettings.voiceTasksEnabled && (
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={startVoiceInput}
+                style={[styles.micBtn, { backgroundColor: colors.accent + '20' }]}
+              >
+                <Mic size={18} color={colors.accent} />
+              </AnimatedPressable>
+            )}
+          </View>
+
+          {/* Smart Interactive Preview Card */}
+          {smartSettings.smartParsingEnabled && parsedTask && rawText.trim().length > 2 && (
+            <Animated.View entering={FadeInDown.duration(200)} style={[styles.smartCard, { backgroundColor: colors.secondaryBackground }]}>
+              <View style={styles.smartHeaderRow}>
+                <Sparkles size={14} color={colors.accent} style={{ marginRight: 5 }} />
+                <Text style={[styles.smartHeading, { color: colors.accent }]}>Smart Detection Preview</Text>
+                <Text style={[styles.confidenceText, { color: colors.textTertiary }]}>
+                  {Math.round(parsedTask.confidence.overall * 100)}% match
+                </Text>
+              </View>
+
+              <Text style={[styles.smartTitleText, { color: colors.textPrimary }]}>
+                {parsedTask.title || rawText}
+              </Text>
+
+              <View style={styles.smartChipsWrap}>
+                {/* Date Chip */}
+                <AnimatedPressable profile="smallControl" onPress={cycleDate} style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                  <Calendar size={13} color={dueDate ? colors.accent : colors.textTertiary} style={{ marginRight: 4 }} />
+                  <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>
+                    {dueDate ? dueDate : 'No Date'}
+                  </Text>
+                </AnimatedPressable>
+
+                {/* Time Chip */}
+                {dueTime && (
+                  <View style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                    <Clock size={13} color={colors.accent} style={{ marginRight: 4 }} />
+                    <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>{dueTime}</Text>
+                  </View>
+                )}
+
+                {/* Priority Chip */}
+                <AnimatedPressable profile="smallControl" onPress={cyclePriority} style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                  <Flag size={13} color={priority !== 'none' ? colors.accent : colors.textTertiary} style={{ marginRight: 4 }} />
+                  <Text style={[styles.smartChipText, { color: colors.textPrimary, textTransform: 'capitalize' }]}>
+                    {priority}
+                  </Text>
+                </AnimatedPressable>
+
+                {/* Category Chip */}
+                <AnimatedPressable profile="smallControl" onPress={cycleCategory} style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                  <Text style={{ fontSize: 12, marginRight: 4 }}>{currentCategoryIcon}</Text>
+                  <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>{category}</Text>
+                </AnimatedPressable>
+
+                {/* Estimated Duration Chip */}
+                <AnimatedPressable profile="smallControl" onPress={cycleDuration} style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                  <Timer size={13} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                  <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>{estimatedDuration}m</Text>
+                </AnimatedPressable>
+
+                {/* Reminder Chip */}
+                {reminder !== 'none' && (
+                  <AnimatedPressable profile="smallControl" onPress={cycleReminder} style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
+                    <Bell size={13} color={colors.warning} style={{ marginRight: 4 }} />
+                    <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>
+                      {reminder.replace('_', ' ')}
+                    </Text>
+                  </AnimatedPressable>
+                )}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Date Selector Row */}
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Due Date</Text>
+          <View style={styles.chipsRow}>
+            {[
+              { label: 'Today', dateStr: getTodayDateString(), icon: Calendar },
+              { label: 'Tomorrow', dateStr: getTomorrowDateString(), icon: Calendar },
+              { label: 'No Date', dateStr: undefined, icon: Clock },
+            ].map((item) => {
+              const isSelected = dueDate === item.dateStr;
+              const IconComp = item.icon;
+              return (
+                <AnimatedPressable
+                  key={item.label}
+                  profile="smallControl"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setDueDate(item.dateStr);
+                  }}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isSelected ? colors.accent : colors.secondaryBackground,
+                    },
+                  ]}
+                >
+                  <IconComp
+                    size={14}
+                    color={isSelected ? '#FFFFFF' : colors.textSecondary}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+
+          {/* Priority Row */}
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Priority</Text>
+          <View style={styles.chipsRow}>
+            {(['none', 'low', 'medium', 'high', 'urgent'] as PriorityLevel[]).map((p) => {
+              const isSelected = priority === p;
+              return (
+                <AnimatedPressable
+                  key={p}
+                  profile="smallControl"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setPriority(p);
+                  }}
+                  style={[
+                    styles.priorityChip,
+                    {
+                      backgroundColor: isSelected ? colors.accent : colors.secondaryBackground,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                        textTransform: 'capitalize',
+                      },
+                    ]}
+                  >
+                    {p}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+
+          {/* Project Selector */}
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Project</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScrollContent}
+            style={styles.horizontalScrollView}
+          >
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedProjectId(undefined);
+              }}
+              style={[
+                styles.projectChip,
+                {
+                  backgroundColor: !selectedProjectId ? colors.accent : colors.secondaryBackground,
+                },
+              ]}
+            >
+              <Folder size={14} color={!selectedProjectId ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 5 }} />
+              <Text style={[styles.chipText, { color: !selectedProjectId ? '#FFFFFF' : colors.textSecondary }]}>
+                Inbox
+              </Text>
+            </AnimatedPressable>
+
+            {projects.map((proj) => {
+              const isSelected = selectedProjectId === proj.id;
+              return (
+                <AnimatedPressable
+                  key={proj.id}
+                  profile="smallControl"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedProjectId(proj.id);
+                  }}
+                  style={[
+                    styles.projectChip,
+                    {
+                      backgroundColor: isSelected ? proj.color : colors.secondaryBackground,
+                    },
+                  ]}
+                >
+                  <View style={[styles.projectDot, { backgroundColor: isSelected ? '#FFFFFF' : proj.color }]} />
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                    {proj.name}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Toggle Advanced */}
+          <AnimatedPressable
+            profile="smallControl"
+            onPress={() => setShowAdvanced(!showAdvanced)}
+            style={styles.advancedToggle}
+          >
+            <Text style={[styles.advancedText, { color: colors.accent }]}>
+              {showAdvanced ? 'Hide Notes & Subtasks' : '+ Add Notes & Subtasks'}
+            </Text>
+          </AnimatedPressable>
+
+          {showAdvanced && (
+            <View style={styles.advancedSection}>
+              <TextInput
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Additional notes..."
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.notesInput,
+                  { color: colors.textPrimary, backgroundColor: colors.secondaryBackground },
+                ]}
+                multiline
+              />
+
+              <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Subtasks</Text>
+              <View style={styles.subtaskInputRow}>
+                <TextInput
+                  value={subtaskInput}
+                  onChangeText={setSubtaskInput}
+                  placeholder="Add subtask..."
+                  placeholderTextColor={colors.textTertiary}
+                  style={[
+                    styles.subtaskInput,
+                    { color: colors.textPrimary, backgroundColor: colors.secondaryBackground },
+                  ]}
+                  onSubmitEditing={handleAddSubtask}
+                />
+                <AnimatedPressable
+                  profile="smallControl"
+                  onPress={handleAddSubtask}
+                  style={[styles.addSubtaskBtn, { backgroundColor: colors.accent }]}
+                >
+                  <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+                </AnimatedPressable>
+              </View>
+
+              {subtasks.map((sub) => (
+                <View key={sub.id} style={styles.subtaskItem}>
+                  <Check size={14} color={colors.accent} style={{ marginRight: 6 }} />
+                  <Text style={[styles.subtaskTitle, { color: colors.textPrimary }]}>{sub.title}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Create Task Button CTA */}
+        <View style={styles.footer}>
+          <AnimatedPressable
+            profile="primaryButton"
+            onPress={handleSave}
+            disabled={!isFormValid}
+            style={[
+              styles.saveButton,
+              { backgroundColor: colors.accent, opacity: isFormValid ? 1 : 0.4 },
+            ]}
+          >
+            <Text style={styles.saveText}>Create Task</Text>
+          </AnimatedPressable>
+        </View>
+      </Animated.View>
+
+      {/* Voice Listening Modal */}
+      <Modal visible={isListening} transparent animationType="fade">
+        <View style={styles.voiceOverlay}>
+          <BlurView intensity={30} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View style={[styles.voiceCard, { backgroundColor: colors.elevatedCard }, Shadows.floating]}>
+            <Animated.View style={[styles.voiceMicCircle, { backgroundColor: colors.accent }, animatedPulseStyle]}>
+              <Mic size={36} color="#FFFFFF" />
+            </Animated.View>
+            <Text style={[styles.voiceTitle, { color: colors.textPrimary }]}>Listening...</Text>
+            <Text style={[styles.voiceSub, { color: colors.textSecondary }]}>
+              {voiceSpokenText || 'Say your task (e.g. "Buy groceries tomorrow at 6 PM")'}
+            </Text>
+
+            {/* Apple style 3 pulsing dots */}
+            <View style={styles.dotsRow}>
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+            </View>
+
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={cancelVoiceInput}
+              style={[styles.voiceCancelBtn, { backgroundColor: colors.secondaryBackground }]}
+            >
+              <Text style={[styles.voiceCancelText, { color: colors.textPrimary }]}>Cancel</Text>
+            </AnimatedPressable>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlayContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    borderTopLeftRadius: Radii.sheet,
+    borderTopRightRadius: Radii.sheet,
+    borderWidth: 1,
+    maxHeight: '92%',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
+  },
+  modalTitle: {
+    ...TypographyScale.title3,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    ...TypographyScale.caption1,
+    marginTop: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.lg,
+  },
+  inputSurface: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1.5,
+    marginBottom: Spacing.md,
+  },
+  titleInput: {
+    ...TypographyScale.body,
+    flex: 1,
+    minHeight: 46,
+    paddingVertical: Spacing.sm,
+  },
+  micBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.xs,
+  },
+  smartCard: {
+    padding: Spacing.md,
+    borderRadius: Radii.lg,
+    marginBottom: Spacing.md,
+  },
+  smartHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  smartHeading: {
+    ...TypographyScale.caption1,
+    fontWeight: '700',
+    flex: 1,
+  },
+  confidenceText: {
+    ...TypographyScale.caption2,
+  },
+  smartTitleText: {
+    ...TypographyScale.headline,
+    marginBottom: Spacing.sm,
+  },
+  smartChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  smartChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radii.pill,
+  },
+  smartChipText: {
+    ...TypographyScale.caption1,
+    fontWeight: '600',
+  },
+  sectionLabel: {
+    ...TypographyScale.caption1,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.pill,
+  },
+  priorityChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.pill,
+  },
+  chipText: {
+    ...TypographyScale.footnote,
+    fontWeight: '600',
+  },
+  horizontalScrollView: {
+    marginBottom: Spacing.sm,
+  },
+  horizontalScrollContent: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingRight: Spacing.xl,
+  },
+  projectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.pill,
+  },
+  projectDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  advancedToggle: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    marginVertical: Spacing.xs,
+  },
+  advancedText: {
+    ...TypographyScale.footnote,
+    fontWeight: '600',
+  },
+  advancedSection: {
+    marginTop: Spacing.xs,
+  },
+  notesInput: {
+    ...TypographyScale.body,
+    padding: Spacing.md,
+    borderRadius: Radii.md,
+    minHeight: 60,
+    marginBottom: Spacing.sm,
+  },
+  subtaskInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  subtaskInput: {
+    flex: 1,
+    ...TypographyScale.body,
+    padding: Spacing.sm,
+    borderRadius: Radii.md,
+  },
+  addSubtaskBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subtaskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  subtaskTitle: {
+    ...TypographyScale.body,
+  },
+  footer: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
+  },
+  saveButton: {
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveText: {
+    ...TypographyScale.headline,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  voiceOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: Spacing.xl,
+  },
+  voiceCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: Radii.xl,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+  },
+  voiceMicCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  voiceTitle: {
+    ...TypographyScale.title2,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
+  },
+  voiceSub: {
+    ...TypographyScale.body,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xl,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  voiceCancelBtn: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radii.pill,
+  },
+  voiceCancelText: {
+    ...TypographyScale.footnote,
+    fontWeight: '700',
+  },
+});
