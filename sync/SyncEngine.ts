@@ -10,6 +10,7 @@ import { DeviceIdService } from './DeviceIdService';
 import { Task } from '../models/task';
 import { Project } from '../models/project';
 import { Tag } from '../models/tag';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SyncStatusListener = (status: SyncStatus) => void;
 
@@ -17,6 +18,7 @@ export class SyncEngine {
   private static status: SyncStatus = 'synced';
   private static listeners: Set<SyncStatusListener> = new Set();
   private static lastSyncTime: string | null = null;
+  private static readonly APPLIED_OPS_KEY = '@taskora_applied_operations_v4';
 
   public static getStatus(): SyncStatus {
     return this.status;
@@ -34,9 +36,38 @@ export class SyncEngine {
     };
   }
 
-  private static setStatus(newStatus: SyncStatus): void {
+  public static setStatus(newStatus: SyncStatus): void {
     this.status = newStatus;
     this.listeners.forEach((l) => l(newStatus));
+  }
+
+  /**
+   * Loads the set of already applied operation IDs for idempotency
+   */
+  private static async getAppliedOperationIds(): Promise<Set<string>> {
+    try {
+      const raw = await AsyncStorage.getItem(this.APPLIED_OPS_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Saves applied operation IDs
+   */
+  private static async markOperationsApplied(opIds: string[]): Promise<void> {
+    try {
+      const set = await this.getAppliedOperationIds();
+      opIds.forEach((id) => set.add(id));
+      // Keep last 1000 operation IDs to prevent unbounded storage growth
+      const trimmed = Array.from(set).slice(-1000);
+      await AsyncStorage.setItem(this.APPLIED_OPS_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      console.error('[SyncEngine] Error saving applied op IDs:', e);
+    }
   }
 
   /**
@@ -48,9 +79,11 @@ export class SyncEngine {
   }
 
   /**
-   * Applies an incoming SyncPayload from a paired device with deterministic conflict resolution
+   * Applies an incoming SyncPayload from a paired device with deterministic conflict resolution & revocation checking
    */
-  public static async applyIncomingPayload(payload: SyncPayload): Promise<{ appliedCount: number; conflictsResolved: number }> {
+  public static async applyIncomingPayload(
+    payload: SyncPayload
+  ): Promise<{ appliedCount: number; conflictsResolved: number; rejectedRevoked?: boolean }> {
     this.setStatus('syncing');
 
     try {
@@ -66,10 +99,21 @@ export class SyncEngine {
         return { appliedCount: 0, conflictsResolved: 0 };
       }
 
+      // Check if the sender device has been revoked
+      const isRevoked = await DevicePairing.isDeviceRevoked(payload.senderDeviceId);
+      if (isRevoked) {
+        this.setStatus('error');
+        throw new Error(
+          `DEVICE_REVOKED: Device "${payload.senderDeviceName}" (${payload.senderDeviceId}) is revoked and cannot sync.`
+        );
+      }
+
       let appliedCount = 0;
       let conflictsResolved = 0;
+      const appliedOpIds: string[] = [];
+      const existingAppliedOps = await this.getAppliedOperationIds();
 
-      // Authorize sender in pairing registry
+      // Ensure sender device is in authorized list
       await DevicePairing.authorizeDevice({
         deviceId: payload.senderDeviceId,
         deviceName: payload.senderDeviceName,
@@ -81,8 +125,15 @@ export class SyncEngine {
       });
 
       for (const op of payload.operations) {
+        // Idempotency: skip if already applied
+        if (op.operationId && existingAppliedOps.has(op.operationId)) {
+          continue;
+        }
+
         // Advance local Lamport logical clock with incoming version
-        await LamportClock.witness(op.version);
+        if (op.lamportClock || op.version) {
+          await LamportClock.witness(op.lamportClock || op.version);
+        }
 
         if (op.entityType === 'task') {
           if (op.operationType === 'DELETE') {
@@ -99,7 +150,7 @@ export class SyncEngine {
                 const resolution = ConflictResolver.resolveTaskConflict(
                   localTask,
                   op.payload as Task,
-                  op.deviceId
+                  payload.senderDeviceId
                 );
                 await LocalDatabase.applyRemoteTask(resolution.resolved);
                 appliedCount++;
@@ -114,8 +165,7 @@ export class SyncEngine {
           } else {
             const isTombstoned = await TombstoneService.isDeleted(op.entityId);
             if (!isTombstoned) {
-              const allProjects = await LocalDatabase.getAllProjects();
-              const localProj = allProjects.find((p) => p.id === op.entityId);
+              const localProj = await LocalDatabase.getProjectById(op.entityId);
               if (!localProj) {
                 await LocalDatabase.applyRemoteProject(op.payload as Project);
                 appliedCount++;
@@ -123,7 +173,7 @@ export class SyncEngine {
                 const resolution = ConflictResolver.resolveProjectConflict(
                   localProj,
                   op.payload as Project,
-                  op.deviceId
+                  payload.senderDeviceId
                 );
                 await LocalDatabase.applyRemoteProject(resolution.resolved);
                 appliedCount++;
@@ -136,52 +186,58 @@ export class SyncEngine {
             await LocalDatabase.deleteTag(op.entityId);
             appliedCount++;
           } else {
-            const isTombstoned = await TombstoneService.isDeleted(op.entityId);
-            if (!isTombstoned) {
-              const allTags = await LocalDatabase.getAllTags();
-              const localTag = allTags.find((t) => t.id === op.entityId);
-              if (!localTag) {
-                await LocalDatabase.applyRemoteTag(op.payload as Tag);
-                appliedCount++;
-              } else {
-                const resolved = ConflictResolver.resolveTagConflict(
-                  localTag,
-                  op.payload as Tag,
-                  op.deviceId
-                );
-                await LocalDatabase.applyRemoteTag(resolved);
-                appliedCount++;
-              }
-            }
+            await LocalDatabase.applyRemoteTag(op.payload as Tag);
+            appliedCount++;
           }
+        }
+
+        if (op.operationId) {
+          appliedOpIds.push(op.operationId);
         }
       }
 
+      await this.markOperationsApplied(appliedOpIds);
       await DevicePairing.recordSyncTime(payload.senderDeviceId);
+
       this.lastSyncTime = new Date().toISOString();
-      this.setStatus(conflictsResolved > 0 ? 'conflict' : 'synced');
+      this.setStatus('synced');
 
       return { appliedCount, conflictsResolved };
     } catch (e) {
       console.error('[SyncEngine] Error applying payload:', e);
-      this.setStatus('error');
       throw e;
     }
   }
 
   /**
-   * Executes local sync now routine
+   * Triggers a manual sync pass
    */
   public static async syncNow(): Promise<{ pendingCount: number; lastSync: string }> {
     this.setStatus('syncing');
+
     try {
-      const pendingOps = await SyncQueue.getPendingOperations();
-      const now = new Date().toISOString();
-      this.lastSyncTime = now;
+      const myDeviceId = await DeviceIdService.getDeviceId();
+      const isRevoked = await DevicePairing.isDeviceRevoked(myDeviceId);
+
+      if (isRevoked) {
+        this.setStatus('device_revoked');
+        throw new Error('DEVICE_REVOKED: This installation has been disconnected/revoked.');
+      }
+
+      const pending = await SyncQueue.getPendingOperations();
+      this.lastSyncTime = new Date().toISOString();
       this.setStatus('synced');
-      return { pendingCount: pendingOps.length, lastSync: now };
-    } catch (e) {
-      this.setStatus('error');
+
+      return {
+        pendingCount: pending.length,
+        lastSync: this.lastSyncTime,
+      };
+    } catch (e: any) {
+      if (e.message?.includes('DEVICE_REVOKED')) {
+        this.setStatus('device_revoked');
+      } else {
+        this.setStatus('error');
+      }
       throw e;
     }
   }

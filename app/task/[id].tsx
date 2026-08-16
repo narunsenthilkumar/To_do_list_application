@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Modal,
+  Pressable,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -22,24 +25,29 @@ import {
   History,
   Pin,
   Star,
+  CheckCircle2,
+  CalendarDays,
+  X,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../../components/common/PrimarySurface';
 import { ElevatedCard } from '../../components/common/ElevatedCard';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 import { TaskCheckbox } from '../../components/tasks/TaskCheckbox';
-import { PriorityBadge } from '../../components/tasks/PriorityBadge';
 import { useTaskora, useTheme } from '../../store/useTaskora';
-import { PriorityLevel } from '../../models/task';
-import { Radii, Spacing, TypographyScale } from '../../theme/tokens';
+import { PriorityLevel, ReminderOption, RecurrenceFrequency, Task } from '../../models/task';
+import { Radii, Spacing, TypographyScale, Shadows } from '../../theme/tokens';
 import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
 import { safeGoBack } from '../../utils/navigation';
+import { haptics } from '../../services/haptics';
+import { getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
+import { formatShortTime, formatTaskTime, formatClockTime } from '../../utils/timeFormatter';
+import { calculateTaskProgress } from '../../utils/progress';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, timeFormat } = useTheme();
   const insets = useSafeAreaInsets();
   const {
     tasks,
@@ -56,23 +64,48 @@ export default function TaskDetailScreen() {
 
   const task = tasks.find((t) => t.id === id);
 
+  // Local draft state for safe editing
   const [title, setTitle] = useState(task?.title || '');
   const [notes, setNotes] = useState(task?.notes || '');
+  const [dueDate, setDueDate] = useState<string | undefined>(task?.dueDate);
+  const [dueTime, setDueTime] = useState<string | undefined>(task?.dueTime);
+  const [priority, setPriority] = useState<PriorityLevel>(task?.priority || 'none');
+  const [projectId, setProjectId] = useState<string | undefined>(task?.projectId);
+  const [reminder, setReminder] = useState<ReminderOption>(task?.reminder || 'none');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Time picker modal
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [customTimeInput, setCustomTimeInput] = useState(task?.dueTime || '17:00');
+
+  // Date picker modal
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [customDateInput, setCustomDateInput] = useState(task?.dueDate || getTodayDateString());
+
+  // Keep local state synced if task updates externally
   useEffect(() => {
     if (task) {
-      setTitle(task.title);
+      setTitle(task.title || '');
       setNotes(task.notes || '');
+      setDueDate(task.dueDate);
+      setDueTime(task.dueTime);
+      setPriority(task.priority || 'none');
+      setProjectId(task.projectId);
+      setReminder(task.reminder || 'none');
     }
-  }, [task]);
+  }, [task?.id, task?.updatedAt]);
 
   if (!task) {
     return (
       <PrimarySurface>
         <View style={styles.notFoundContainer}>
           <Text style={[styles.notFoundText, { color: colors.textPrimary }]}>Task not found</Text>
-          <AnimatedPressable profile="primaryButton" onPress={() => safeGoBack(router)} style={[styles.backBtn, { backgroundColor: colors.accent }]}>
+          <AnimatedPressable
+            profile="primaryButton"
+            onPress={() => safeGoBack(router)}
+            style={[styles.backBtn, { backgroundColor: colors.accent }]}
+          >
             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Go Back</Text>
           </AnimatedPressable>
         </View>
@@ -80,25 +113,40 @@ export default function TaskDetailScreen() {
     );
   }
 
-  const handleTitleBlur = () => {
-    if (title.trim() && title !== task.title) {
-      updateTask(task.id, { title: title.trim() });
-    }
+  const subtasks = task.subtasks || [];
+  const activityLogs = task.activityLogs || [];
+  const progressPercent = calculateTaskProgress(task);
+
+  // Save all changes and return smoothly
+  const handleSaveAndDone = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    haptics.success();
+
+    const cleanTitle = title.trim() || task.title;
+
+    await updateTask(task.id, {
+      title: cleanTitle,
+      notes: notes.trim(),
+      dueDate,
+      dueTime,
+      priority,
+      projectId,
+      reminder,
+    });
+
+    setIsSaving(false);
+    safeGoBack(router);
   };
 
-  const handleNotesBlur = () => {
-    if (notes !== task.notes) {
-      updateTask(task.id, { notes });
-    }
-  };
-
-  const handleAddSubtask = () => {
+  const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim()) return;
-    addSubtask(task.id, newSubtaskTitle.trim());
+    await addSubtask(task.id, newSubtaskTitle.trim());
     setNewSubtaskTitle('');
   };
 
   const handleDeleteTask = () => {
+    haptics.warning();
     Alert.alert('Delete Task', `Are you sure you want to delete "${task.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -112,13 +160,41 @@ export default function TaskDetailScreen() {
     ]);
   };
 
-  const bottomInset = Math.max(insets.bottom, 24) + 20;
+  // Defer quick actions
+  const handleDefer = (type: 'later_today' | 'tomorrow' | 'next_week') => {
+    haptics.medium();
+    const today = getTodayDateString();
+    if (type === 'later_today') {
+      const now = new Date();
+      now.setHours(now.getHours() + 3);
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      setDueDate(today);
+      setDueTime(`${h}:${m}`);
+    } else if (type === 'tomorrow') {
+      setDueDate(getTomorrowDateString());
+    } else if (type === 'next_week') {
+      const nextW = new Date();
+      nextW.setDate(nextW.getDate() + 7);
+      const y = nextW.getFullYear();
+      const mo = String(nextW.getMonth() + 1).padStart(2, '0');
+      const d = String(nextW.getDate()).padStart(2, '0');
+      setDueDate(`${y}-${mo}-${d}`);
+    }
+  };
+
+  const bottomInset = Math.max(insets.bottom, 24) + 70;
 
   return (
     <PrimarySurface>
       {/* Navigation Header */}
       <View style={styles.navHeader}>
-        <AnimatedPressable profile="smallControl" onPress={() => safeGoBack(router)} style={styles.iconBtn} accessibilityLabel="Go back">
+        <AnimatedPressable
+          profile="smallControl"
+          onPress={() => safeGoBack(router)}
+          style={styles.iconBtn}
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.textPrimary} />
         </AnimatedPressable>
 
@@ -126,14 +202,8 @@ export default function TaskDetailScreen() {
           {/* Pin Quick Toggle */}
           <AnimatedPressable
             profile="smallControl"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              toggleTaskPin(task.id);
-            }}
-            style={[
-              styles.iconBtn,
-              task.isPinned && { backgroundColor: colors.accent + '20' },
-            ]}
+            onPress={() => toggleTaskPin(task.id)}
+            style={[styles.iconBtn, task.isPinned && { backgroundColor: colors.accent + '20' }]}
           >
             <Pin
               size={20}
@@ -145,14 +215,8 @@ export default function TaskDetailScreen() {
           {/* Favorite Quick Toggle */}
           <AnimatedPressable
             profile="smallControl"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              toggleTaskFavorite(task.id);
-            }}
-            style={[
-              styles.iconBtn,
-              task.isFavorite && { backgroundColor: '#FFCC0025' },
-            ]}
+            onPress={() => toggleTaskFavorite(task.id)}
+            style={[styles.iconBtn, task.isFavorite && { backgroundColor: '#FFCC0025' }]}
           >
             <Star
               size={20}
@@ -171,19 +235,21 @@ export default function TaskDetailScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Title & Large Checkbox */}
+        {/* Title & Checkbox */}
         <View style={styles.titleSection}>
           <TaskCheckbox
             completed={task.completed}
             onToggle={() => toggleTaskCompletion(task.id)}
-            priority={task.priority}
+            priority={priority}
             size={28}
           />
           <TextInput
             value={title}
             onChangeText={setTitle}
-            onBlur={handleTitleBlur}
+            placeholder="Task title..."
+            placeholderTextColor={colors.textTertiary}
             style={[
               styles.titleInput,
               {
@@ -195,69 +261,238 @@ export default function TaskDetailScreen() {
           />
         </View>
 
-        {/* Pin & Favorite Highlights Card */}
+        {/* Progress Bar for Subtasks / Task completion */}
         <ElevatedCard style={styles.cardSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Importance & Position</Text>
-          <View style={styles.statusChipsRow}>
-            {/* Pinned toggle chip */}
+          <View style={styles.progressRow}>
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+              Task Progress ({subtasks.filter((s) => s.completed).length}/{subtasks.length} subtasks)
+            </Text>
+            <Text style={[styles.progressValue, { color: colors.accent }]}>{progressPercent}%</Text>
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: colors.secondaryBackground }]}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: colors.accent }]} />
+          </View>
+        </ElevatedCard>
+
+        {/* Date & Time Selector Card */}
+        <ElevatedCard style={styles.cardSection}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Due Date & Time</Text>
+          
+          <View style={styles.chipRow}>
+            {/* Today */}
             <AnimatedPressable
               profile="smallControl"
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                toggleTaskPin(task.id);
+                haptics.selection();
+                setDueDate(getTodayDateString());
               }}
               style={[
-                styles.highlightChip,
-                {
-                  backgroundColor: task.isPinned ? colors.accent : colors.secondaryBackground,
-                },
+                styles.selectorChip,
+                { backgroundColor: dueDate === getTodayDateString() ? colors.accent : colors.secondaryBackground },
               ]}
             >
-              <Pin
-                size={16}
-                color={task.isPinned ? '#FFFFFF' : colors.textSecondary}
-                fill={task.isPinned ? '#FFFFFF' : 'transparent'}
-                style={{ marginRight: 6 }}
-              />
               <Text
                 style={[
-                  styles.highlightChipText,
-                  { color: task.isPinned ? '#FFFFFF' : colors.textPrimary },
+                  styles.chipText,
+                  { color: dueDate === getTodayDateString() ? '#FFFFFF' : colors.textSecondary },
                 ]}
               >
-                {task.isPinned ? 'Pinned to Top' : 'Pin Task'}
+                Today
               </Text>
             </AnimatedPressable>
 
-            {/* Favorite toggle chip */}
+            {/* Tomorrow */}
             <AnimatedPressable
               profile="smallControl"
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                toggleTaskFavorite(task.id);
+                haptics.selection();
+                setDueDate(getTomorrowDateString());
               }}
               style={[
-                styles.highlightChip,
+                styles.selectorChip,
+                { backgroundColor: dueDate === getTomorrowDateString() ? colors.accent : colors.secondaryBackground },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: dueDate === getTomorrowDateString() ? '#FFFFFF' : colors.textSecondary },
+                ]}
+              >
+                Tomorrow
+              </Text>
+            </AnimatedPressable>
+
+            {/* Custom Date */}
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                haptics.selection();
+                setDatePickerVisible(true);
+              }}
+              style={[
+                styles.selectorChip,
                 {
-                  backgroundColor: task.isFavorite ? '#FFCC00' : colors.secondaryBackground,
+                  backgroundColor:
+                    dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                      ? colors.accent
+                      : colors.secondaryBackground,
                 },
               ]}
             >
-              <Star
-                size={16}
-                color={task.isFavorite ? '#000000' : colors.textSecondary}
-                fill={task.isFavorite ? '#000000' : 'transparent'}
-                style={{ marginRight: 6 }}
-              />
+              <Calendar size={14} color={dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString() ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 4 }} />
               <Text
                 style={[
-                  styles.highlightChipText,
-                  { color: task.isFavorite ? '#000000' : colors.textPrimary },
+                  styles.chipText,
+                  {
+                    color:
+                      dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                        ? '#FFFFFF'
+                        : colors.textSecondary,
+                  },
                 ]}
               >
-                {task.isFavorite ? 'In Favorites' : 'Add to Favorites'}
+                {dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                  ? dueDate
+                  : 'Pick Date'}
               </Text>
             </AnimatedPressable>
+
+            {/* No Date */}
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                haptics.selection();
+                setDueDate(undefined);
+                setDueTime(undefined);
+              }}
+              style={[
+                styles.selectorChip,
+                { backgroundColor: !dueDate ? colors.accent : colors.secondaryBackground },
+              ]}
+            >
+              <Text style={[styles.chipText, { color: !dueDate ? '#FFFFFF' : colors.textSecondary }]}>
+                No Date
+              </Text>
+            </AnimatedPressable>
+          </View>
+
+          {/* Time Picker Row */}
+          {dueDate && (
+            <View style={{ marginTop: Spacing.sm }}>
+              <Text style={[styles.subSectionTitle, { color: colors.textTertiary }]}>Time</Text>
+              <View style={styles.chipRow}>
+                {['09:00', '12:00', '15:00', '17:00', '21:00'].map((presetTime) => (
+                  <AnimatedPressable
+                    key={presetTime}
+                    profile="smallControl"
+                    onPress={() => {
+                      haptics.selection();
+                      setDueTime(presetTime);
+                    }}
+                    style={[
+                      styles.selectorChip,
+                      { backgroundColor: dueTime === presetTime ? colors.accent : colors.secondaryBackground },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: dueTime === presetTime ? '#FFFFFF' : colors.textSecondary }]}>
+                      {formatShortTime(presetTime, timeFormat)}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+
+                <AnimatedPressable
+                  profile="smallControl"
+                  onPress={() => {
+                    haptics.selection();
+                    setTimePickerVisible(true);
+                  }}
+                  style={[
+                    styles.selectorChip,
+                    {
+                      backgroundColor:
+                        dueTime && !['09:00', '12:00', '15:00', '17:00', '21:00'].includes(dueTime)
+                          ? colors.accent
+                          : colors.secondaryBackground,
+                    },
+                  ]}
+                >
+                  <Clock size={13} color={dueTime && !['09:00', '12:00', '15:00', '17:00', '21:00'].includes(dueTime) ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 4 }} />
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color:
+                          dueTime && !['09:00', '12:00', '15:00', '17:00', '21:00'].includes(dueTime)
+                            ? '#FFFFFF'
+                            : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {dueTime ? formatTaskTime(dueTime, timeFormat) : 'Custom'}
+                  </Text>
+                </AnimatedPressable>
+              </View>
+            </View>
+          )}
+
+          {/* Defer Quick Actions */}
+          <View style={styles.deferRow}>
+            <Text style={[styles.subSectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>Quick Defer:</Text>
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => handleDefer('later_today')}
+              style={[styles.deferBtn, { backgroundColor: colors.secondaryBackground }]}
+            >
+              <Text style={[styles.deferBtnText, { color: colors.textSecondary }]}>Later Today</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => handleDefer('tomorrow')}
+              style={[styles.deferBtn, { backgroundColor: colors.secondaryBackground }]}
+            >
+              <Text style={[styles.deferBtnText, { color: colors.textSecondary }]}>Tomorrow</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => handleDefer('next_week')}
+              style={[styles.deferBtn, { backgroundColor: colors.secondaryBackground }]}
+            >
+              <Text style={[styles.deferBtnText, { color: colors.textSecondary }]}>Next Week</Text>
+            </AnimatedPressable>
+          </View>
+        </ElevatedCard>
+
+        {/* Reminders Card */}
+        <ElevatedCard style={styles.cardSection}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Reminder</Text>
+          <View style={styles.chipRow}>
+            {(['none', 'at_time', '5m_before', '15m_before', '30m_before', '1h_before', '1d_before'] as ReminderOption[]).map((r) => (
+              <AnimatedPressable
+                key={r}
+                profile="smallControl"
+                onPress={() => {
+                  haptics.selection();
+                  setReminder(r);
+                }}
+                style={[
+                  styles.selectorChip,
+                  { backgroundColor: reminder === r ? colors.accent : colors.secondaryBackground },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    {
+                      color: reminder === r ? '#FFFFFF' : colors.textSecondary,
+                      textTransform: 'capitalize',
+                    },
+                  ]}
+                >
+                  {r.replace('_', ' ')}
+                </Text>
+              </AnimatedPressable>
+            ))}
           </View>
         </ElevatedCard>
 
@@ -269,18 +504,21 @@ export default function TaskDetailScreen() {
               <AnimatedPressable
                 key={p}
                 profile="smallControl"
-                onPress={() => updateTask(task.id, { priority: p })}
+                onPress={() => {
+                  haptics.selection();
+                  setPriority(p);
+                }}
                 style={[
                   styles.selectorChip,
                   {
-                    backgroundColor: task.priority === p ? colors.accent : colors.secondaryBackground,
+                    backgroundColor: priority === p ? colors.accent : colors.secondaryBackground,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.chipText,
-                    { color: task.priority === p ? '#FFFFFF' : colors.textSecondary, textTransform: 'capitalize' },
+                    { color: priority === p ? '#FFFFFF' : colors.textSecondary, textTransform: 'capitalize' },
                   ]}
                 >
                   {p}
@@ -296,13 +534,16 @@ export default function TaskDetailScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
             <AnimatedPressable
               profile="smallControl"
-              onPress={() => updateTask(task.id, { projectId: undefined })}
+              onPress={() => {
+                haptics.selection();
+                setProjectId(undefined);
+              }}
               style={[
                 styles.selectorChip,
-                { backgroundColor: !task.projectId ? colors.accent : colors.secondaryBackground },
+                { backgroundColor: !projectId ? colors.accent : colors.secondaryBackground },
               ]}
             >
-              <Text style={[styles.chipText, { color: !task.projectId ? '#FFFFFF' : colors.textSecondary }]}>
+              <Text style={[styles.chipText, { color: !projectId ? '#FFFFFF' : colors.textSecondary }]}>
                 Inbox
               </Text>
             </AnimatedPressable>
@@ -311,11 +552,14 @@ export default function TaskDetailScreen() {
               <AnimatedPressable
                 key={proj.id}
                 profile="smallControl"
-                onPress={() => updateTask(task.id, { projectId: proj.id })}
+                onPress={() => {
+                  haptics.selection();
+                  setProjectId(proj.id);
+                }}
                 style={[
                   styles.selectorChip,
                   {
-                    backgroundColor: task.projectId === proj.id ? proj.color : colors.secondaryBackground,
+                    backgroundColor: projectId === proj.id ? proj.color : colors.secondaryBackground,
                     marginLeft: Spacing.xs,
                   },
                 ]}
@@ -323,7 +567,7 @@ export default function TaskDetailScreen() {
                 <Text
                   style={[
                     styles.chipText,
-                    { color: task.projectId === proj.id ? '#FFFFFF' : colors.textSecondary },
+                    { color: projectId === proj.id ? '#FFFFFF' : colors.textSecondary },
                   ]}
                 >
                   {proj.name}
@@ -336,7 +580,7 @@ export default function TaskDetailScreen() {
         {/* Subtasks Section */}
         <ElevatedCard style={styles.cardSection}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Subtasks</Text>
-          {task.subtasks.map((sub) => (
+          {subtasks.map((sub) => (
             <View key={sub.id} style={styles.subtaskRow}>
               <AnimatedPressable profile="smallControl" onPress={() => toggleSubtask(task.id, sub.id)}>
                 <Check
@@ -356,7 +600,11 @@ export default function TaskDetailScreen() {
               >
                 {sub.title}
               </Text>
-              <AnimatedPressable profile="smallControl" onPress={() => deleteSubtask(task.id, sub.id)} style={{ padding: 4 }}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => deleteSubtask(task.id, sub.id)}
+                style={{ padding: 4 }}
+              >
                 <Trash2 size={14} color={colors.textTertiary} />
               </AnimatedPressable>
             </View>
@@ -371,7 +619,11 @@ export default function TaskDetailScreen() {
               style={[styles.subtaskInput, { color: colors.textPrimary, backgroundColor: colors.secondaryBackground }]}
               onSubmitEditing={handleAddSubtask}
             />
-            <AnimatedPressable profile="smallControl" onPress={handleAddSubtask} style={[styles.addBtn, { backgroundColor: colors.accent }]}>
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={handleAddSubtask}
+              style={[styles.addBtn, { backgroundColor: colors.accent }]}
+            >
               <Plus size={16} color="#FFFFFF" />
             </AnimatedPressable>
           </View>
@@ -383,7 +635,6 @@ export default function TaskDetailScreen() {
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            onBlur={handleNotesBlur}
             placeholder="Add detailed notes..."
             placeholderTextColor={colors.textTertiary}
             style={[styles.notesInput, { color: colors.textPrimary }]}
@@ -392,21 +643,115 @@ export default function TaskDetailScreen() {
         </ElevatedCard>
 
         {/* Activity Audit Log */}
-        <ElevatedCard style={styles.cardSection}>
-          <View style={styles.activityHeader}>
-            <History size={16} color={colors.textTertiary} style={{ marginRight: 6 }} />
-            <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>Activity History</Text>
-          </View>
-
-          {task.activityLogs.map((log) => (
-            <View key={log.id} style={styles.logItem}>
-              <Text style={[styles.logText, { color: colors.textSecondary }]}>
-                {log.action} · {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        {activityLogs.length > 0 && (
+          <ElevatedCard style={styles.cardSection}>
+            <View style={styles.activityHeader}>
+              <History size={16} color={colors.textTertiary} style={{ marginRight: 6 }} />
+              <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>
+                Activity History
               </Text>
             </View>
-          ))}
-        </ElevatedCard>
+
+            {activityLogs.map((log) => (
+              <View key={log.id} style={styles.logItem}>
+                <Text style={[styles.logText, { color: colors.textSecondary }]}>
+                  {log.action} · {formatClockTime(new Date(log.timestamp), timeFormat).formatted}
+                </Text>
+              </View>
+            ))}
+          </ElevatedCard>
+        )}
       </ScrollView>
+
+      {/* Floating Apple-Style DONE Save Button (Requirement 33) */}
+      <View
+        style={[
+          styles.floatingBottomBar,
+          {
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.92)',
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}
+      >
+        <AnimatedPressable
+          profile="primaryButton"
+          onPress={handleSaveAndDone}
+          style={[styles.doneBtn, { backgroundColor: colors.accent }, Shadows.floating]}
+        >
+          <CheckCircle2 size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.doneBtnText}>Done</Text>
+        </AnimatedPressable>
+      </View>
+
+      {/* Custom Time Picker Modal */}
+      <Modal visible={timePickerVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <ElevatedCard style={styles.pickerModalCard}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Enter Due Time (HH:mm)</Text>
+            <TextInput
+              value={customTimeInput}
+              onChangeText={setCustomTimeInput}
+              placeholder="17:00"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+            />
+            <View style={styles.modalBtnRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setTimePickerVisible(false)}
+                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  setDueTime(customTimeInput.trim());
+                  setTimePickerVisible(false);
+                }}
+                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Set Time</Text>
+              </AnimatedPressable>
+            </View>
+          </ElevatedCard>
+        </View>
+      </Modal>
+
+      {/* Custom Date Picker Modal */}
+      <Modal visible={datePickerVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <ElevatedCard style={styles.pickerModalCard}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Enter Due Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={customDateInput}
+              onChangeText={setCustomDateInput}
+              placeholder="2026-08-20"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+            />
+            <View style={styles.modalBtnRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setDatePickerVisible(false)}
+                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  setDueDate(customDateInput.trim());
+                  setDatePickerVisible(false);
+                }}
+                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Set Date</Text>
+              </AnimatedPressable>
+            </View>
+          </ElevatedCard>
+        </View>
+      </Modal>
     </PrimarySurface>
   );
 }
@@ -427,22 +772,6 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: Spacing.xs,
     borderRadius: Radii.pill,
-  },
-  statusChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  highlightChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 3,
-    borderRadius: Radii.pill,
-  },
-  highlightChipText: {
-    ...TypographyScale.footnote,
-    fontWeight: '700',
   },
   notFoundContainer: {
     flex: 1,
@@ -465,21 +794,59 @@ const styles = StyleSheet.create({
   titleSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   titleInput: {
     ...TypographyScale.title2,
     flex: 1,
     marginLeft: Spacing.md,
     paddingTop: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   cardSection: {
     marginBottom: Spacing.md,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  progressLabel: {
+    ...TypographyScale.caption1,
+    fontWeight: '600',
+  },
+  progressValue: {
+    ...TypographyScale.caption1,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   sectionTitle: {
     ...TypographyScale.footnote,
     fontWeight: '700',
     marginBottom: Spacing.sm,
+  },
+  subSectionTitle: {
+    ...TypographyScale.caption1,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
   },
   chipRow: {
     flexDirection: 'row',
@@ -487,12 +854,33 @@ const styles = StyleSheet.create({
     gap: Spacing.xs + 2,
   },
   selectorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+    paddingVertical: Spacing.xs + 3,
     borderRadius: Radii.pill,
   },
   chipText: {
     ...TypographyScale.footnote,
+    fontWeight: '600',
+  },
+  deferRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150, 150, 150, 0.2)',
+  },
+  deferBtn: {
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radii.pill,
+  },
+  deferBtnText: {
+    ...TypographyScale.caption2,
     fontWeight: '600',
   },
   subtaskRow: {
@@ -516,6 +904,15 @@ const styles = StyleSheet.create({
     ...TypographyScale.body,
     padding: Spacing.sm,
     borderRadius: Radii.md,
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   addBtn: {
     width: 36,
@@ -528,6 +925,15 @@ const styles = StyleSheet.create({
     ...TypographyScale.body,
     minHeight: 80,
     textAlignVertical: 'top',
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   activityHeader: {
     flexDirection: 'row',
@@ -541,5 +947,60 @@ const styles = StyleSheet.create({
     ...TypographyScale.caption1,
     textTransform: 'capitalize',
   },
+  floatingBottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: Radii.pill,
+  },
+  doneBtnText: {
+    ...TypographyScale.headline,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  pickerModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    padding: Spacing.lg,
+    borderRadius: Radii.xl,
+  },
+  modalHeading: {
+    ...TypographyScale.headline,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
+  },
+  modalTextInput: {
+    ...TypographyScale.body,
+    padding: Spacing.md,
+    borderRadius: Radii.md,
+    marginBottom: Spacing.md,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+  },
+  modalActionBtn: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.pill,
+  },
 });
-

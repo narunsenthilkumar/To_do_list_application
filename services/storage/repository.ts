@@ -14,6 +14,8 @@ export const KEYS = {
   THEME_MODE: '@taskora_theme_mode',
   ONBOARDING_DONE: '@taskora_onboarding_done',
   SMART_SETTINGS: '@taskora_smart_settings',
+  TIME_FORMAT: '@taskora_time_format',
+  BACKGROUND_SETTINGS: '@taskora_background_settings',
 };
 
 export const STORAGE_KEYS = KEYS;
@@ -169,6 +171,23 @@ export class Repository {
 
   static async saveSmartSettings(settings: any): Promise<boolean> {
     return await StorageAdapter.setItem(KEYS.SMART_SETTINGS, settings);
+  }
+
+  static async loadTimeFormat(): Promise<'12h' | '24h'> {
+    const format = await StorageAdapter.getItem<'12h' | '24h'>(KEYS.TIME_FORMAT);
+    return format || '12h';
+  }
+
+  static async saveTimeFormat(format: '12h' | '24h'): Promise<boolean> {
+    return await StorageAdapter.setItem(KEYS.TIME_FORMAT, format);
+  }
+
+  static async loadBackgroundSettings(): Promise<any> {
+    return await StorageAdapter.getItem(KEYS.BACKGROUND_SETTINGS);
+  }
+
+  static async saveBackgroundSettings(settings: any): Promise<boolean> {
+    return await StorageAdapter.setItem(KEYS.BACKGROUND_SETTINGS, settings);
   }
 
   // Backup & Import

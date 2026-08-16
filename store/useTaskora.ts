@@ -1,26 +1,25 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTaskStore } from './TaskContext';
 import { useFocusStore } from './FocusContext';
 import { useTheme } from './ThemeContext';
-import { Task } from '../models/task';
+import { Task, PriorityLevel, RecurrenceRule, ReminderOption, Subtask } from '../models/task';
+import { Project } from '../models/project';
+import { Tag } from '../models/tag';
 import { getTodayDateString } from '../services/storage/repository';
 import {
-  SmartSuggestion,
   ProductivityEngine,
   SchedulingEngine,
-  NaturalLanguageParser,
-  CategoryEngine,
-  SmartReminderEngine,
+  SmartSuggestion,
+  ScheduleRecommendation,
 } from '../smart';
-
-export { useTheme };
+import { calculateTasksProgress } from '../utils/progress';
 
 export const useTasks = () => {
   const store = useTaskStore();
   return {
     tasks: store.tasks,
-    isLoading: store.isLoading,
     todayTasks: store.todayTasks,
+    todayAllTasks: store.todayAllTasks,
     inboxTasks: store.inboxTasks,
     upcomingTasks: store.upcomingTasks,
     overdueTasks: store.overdueTasks,
@@ -28,6 +27,7 @@ export const useTasks = () => {
     pinnedTasks: store.pinnedTasks,
     favoriteTasks: store.favoriteTasks,
     completedTasks: store.completedTasks,
+    isLoading: store.isLoading,
     addTask: store.addTask,
     updateTask: store.updateTask,
     toggleTaskCompletion: store.toggleTaskCompletion,
@@ -43,8 +43,8 @@ export const useTasks = () => {
     bulkRescheduleTasks: store.bulkRescheduleTasks,
     bulkSetPriority: store.bulkSetPriority,
     activeUndoAction: store.activeUndoAction,
-    undoLastAction: store.undoLastAction,
     dismissUndo: store.dismissUndo,
+    undoLastAction: store.undoLastAction,
   };
 };
 
@@ -76,13 +76,14 @@ export const useFocusTimer = () => {
     selectedTaskId: store.selectedTaskId,
     completedSessionsToday: store.completedSessionsToday,
     settings: store.settings,
+    streakStats: store.streakStats,
     setSelectedTaskId: store.setSelectedTaskId,
     startTimer: store.startTimer,
     pauseTimer: store.pauseTimer,
     resetTimer: store.resetTimer,
     skipSession: store.skipSession,
     updateSettings: store.updateSettings,
-    streakStats: store.streakStats,
+    recordCompletedTaskStreak: store.recordCompletedTaskStreak,
   };
 };
 
@@ -96,9 +97,13 @@ export const useStatistics = () => {
   const pinnedTasksCount = store.pinnedTasks.length;
   const favoriteTasksCount = store.favoriteTasks.length;
 
+  const todayStats = calculateTasksProgress(store.todayAllTasks);
+
   return {
     streakStats: focusStore.streakStats,
-    completedTodayCount: store.todayTasks.filter((t) => t.completed).length,
+    completedTodayCount: todayStats.completedCount,
+    totalTodayCount: todayStats.totalCount,
+    todayProgressPercent: todayStats.progressPercent,
     totalCompletedCount: completedTasksCount,
     pinnedTasksCount,
     favoriteTasksCount,
@@ -121,7 +126,7 @@ export const useSearch = () => {
       if (q) {
         const titleMatch = t.title.toLowerCase().includes(q);
         const notesMatch = t.notes ? t.notes.toLowerCase().includes(q) : false;
-        const tagMatch = t.tags.some((tag) => tag.toLowerCase().includes(q));
+        const tagMatch = (t.tags || []).some((tag) => tag.toLowerCase().includes(q));
         if (!titleMatch && !notesMatch && !tagMatch) return false;
       }
       if (filterPinned && !t.isPinned) return false;
@@ -158,77 +163,97 @@ export const useSmartSuggestions = () => {
 
   const todayStr = getTodayDateString();
 
-  const refreshSuggestions = useCallback(async () => {
-    if (!smartSettings.productivityTipsEnabled) {
+  useEffect(() => {
+    if (!smartSettings.productivityTipsEnabled && !smartSettings.smartSchedulingEnabled) {
       setSuggestions([]);
       return;
     }
-    setIsLoading(true);
-    try {
-      const active = await ProductivityEngine.getActiveSuggestions(
-        tasks,
-        todayStr,
-        streakStats.currentStreak
-      );
-      setSuggestions(active);
-    } catch {
-      setSuggestions([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tasks, smartSettings.productivityTipsEnabled, todayStr, streakStats.currentStreak]);
 
-  useEffect(() => {
-    refreshSuggestions();
-  }, [refreshSuggestions]);
+    let isMounted = true;
+    const computeSuggestions = async () => {
+      setIsLoading(true);
+      try {
+        const generated = await ProductivityEngine.getActiveSuggestions(
+          tasks,
+          todayStr,
+          streakStats.currentStreak
+        );
+        if (isMounted) {
+          setSuggestions(generated);
+        }
+      } catch (e) {
+        console.warn('[useSmartSuggestions] Error generating suggestions:', e);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
 
-  const dismissSuggestion = useCallback(async (id: string) => {
+    computeSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tasks, streakStats.currentStreak, smartSettings]);
+
+  const dismissSuggestion = async (id: string) => {
     await ProductivityEngine.dismissSuggestion(id);
     setSuggestions((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+  };
 
   return {
     suggestions,
     isLoading,
-    refreshSuggestions,
     dismissSuggestion,
   };
 };
 
-// Smart Productivity Suite Hook
+// Smart Productivity Engine Hook
 export const useSmartProductivity = () => {
-  const { tasks, smartSettings, updateSmartSettings, resetSmartPreferences } = useTaskStore();
+  const { tasks } = useTaskStore();
   const todayStr = getTodayDateString();
 
   const recommendedFocusTask = useMemo(() => {
-    if (!smartSettings.smartSchedulingEnabled) return null;
     return SchedulingEngine.getRecommendedFocusTask(tasks, todayStr);
-  }, [tasks, smartSettings.smartSchedulingEnabled, todayStr]);
+  }, [tasks, todayStr]);
 
-  const schedulingRecommendations = useMemo(() => {
-    if (!smartSettings.smartSchedulingEnabled) return [];
+  const scheduleRecommendations = useMemo(() => {
     return SchedulingEngine.getSchedulingRecommendations(tasks, todayStr);
-  }, [tasks, smartSettings.smartSchedulingEnabled, todayStr]);
+  }, [tasks, todayStr]);
 
   return {
+    recommendedFocusTask,
+    scheduleRecommendations,
+  };
+};
+
+// Main Consolidator Hook
+export const useTaskora = () => {
+  const tasksHook = useTasks();
+  const projectsHook = useProjects();
+  const tagsHook = useTags();
+  const focusHook = useFocusTimer();
+  const statsHook = useStatistics();
+  const searchHook = useSearch();
+  const suggestionsHook = useSmartSuggestions();
+  const productivityHook = useSmartProductivity();
+  const { smartSettings, updateSmartSettings, resetSmartPreferences, clearAllData, applyTemplate } =
+    useTaskStore();
+
+  return {
+    ...tasksHook,
+    ...projectsHook,
+    ...tagsHook,
+    ...focusHook,
+    ...statsHook,
+    ...productivityHook,
+    search: searchHook,
+    smart: suggestionsHook,
     smartSettings,
     updateSmartSettings,
     resetSmartPreferences,
-    recommendedFocusTask,
-    schedulingRecommendations,
-    parseNaturalLanguage: NaturalLanguageParser.parse,
-    categorizeTask: CategoryEngine.categorizeSync,
-    recommendReminder: SmartReminderEngine.recommendForTask,
+    clearAllData,
+    applyTemplate,
   };
 };
 
-// Consolidated Master Hook
-export const useTaskora = () => {
-  const tasksStore = useTaskStore();
-  const focusStore = useFocusStore();
-
-  return {
-    ...tasksStore,
-    ...focusStore,
-  };
-};
+export { useTheme };

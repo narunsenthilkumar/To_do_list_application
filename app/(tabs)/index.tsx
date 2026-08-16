@@ -10,7 +10,6 @@ import Animated, {
   interpolate,
   Extrapolate,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../../components/common/PrimarySurface';
 import { ElevatedCard } from '../../components/common/ElevatedCard';
 import { ProgressRing } from '../../components/common/ProgressRing';
@@ -23,10 +22,11 @@ import { useTaskora, useTheme, useSmartSuggestions } from '../../store/useTaskor
 import { ThemeMode } from '../../store/ThemeContext';
 import { Task } from '../../models/task';
 import { Repository, getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
-import { safeHaptics } from '../../utils/haptics';
+import { haptics } from '../../services/haptics';
 import { MAX_CONTENT_WIDTH } from '../../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../../theme/tokens';
 import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
+import { calculateTasksProgress } from '../../utils/progress';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -35,6 +35,7 @@ export default function TodayScreen() {
 
   const {
     todayTasks,
+    todayAllTasks,
     overdueTasks,
     projects,
     toggleTaskCompletion,
@@ -106,9 +107,12 @@ export default function TodayScreen() {
     }
   });
 
-  const totalTodayCount = todayTasks.length;
-  const completedTodayCount = todayTasks.filter((t) => t.completed).length;
-  const progressPercent = totalTodayCount > 0 ? Math.round((completedTodayCount / totalTodayCount) * 100) : 0;
+  // Calculate accurate combined today progress
+  const {
+    progressPercent,
+    completedCount: completedTodayCount,
+    totalCount: totalTodayCount,
+  } = calculateTasksProgress(todayAllTasks);
 
   const getProjectForTask = (projectId?: string) => {
     if (!projectId) return undefined;
@@ -179,7 +183,7 @@ export default function TodayScreen() {
                     <AnimatedPressable
                       profile="smallControl"
                       onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        haptics.medium();
                         if (suggestion.actionType === 'start_focus') {
                           router.push('/(tabs)/focus');
                         } else if (suggestion.actionType === 'move_today' && suggestion.data?.overdueIds) {
@@ -258,7 +262,14 @@ export default function TodayScreen() {
             {/* Section: Overdue Tasks */}
             {overdueTasks.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.error }]}>Overdue</Text>
+                <View style={styles.overdueHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.error }]}>Overdue</Text>
+                  <View style={[styles.overdueBadge, { backgroundColor: colors.error + '18' }]}>
+                    <Text style={[styles.overdueBadgeText, { color: colors.error }]}>
+                      {overdueTasks.length}
+                    </Text>
+                  </View>
+                </View>
                 {overdueTasks.map((task) => (
                   <SwipeableTaskRow
                     key={task.id}
@@ -287,6 +298,7 @@ export default function TodayScreen() {
                     onLongPress={() => setActionSheetTask(task)}
                     onToggleComplete={() => toggleTaskCompletion(task.id)}
                     onDelete={() => deleteTask(task.id)}
+                    onReschedule={() => updateTask(task.id, { dueDate: getTomorrowDateString() })}
                   />
                 ))}
               </View>
@@ -305,6 +317,7 @@ export default function TodayScreen() {
                     onLongPress={() => setActionSheetTask(task)}
                     onToggleComplete={() => toggleTaskCompletion(task.id)}
                     onDelete={() => deleteTask(task.id)}
+                    onReschedule={() => updateTask(task.id, { dueDate: getTomorrowDateString() })}
                   />
                 ))}
               </View>
@@ -323,15 +336,16 @@ export default function TodayScreen() {
                     onLongPress={() => setActionSheetTask(task)}
                     onToggleComplete={() => toggleTaskCompletion(task.id)}
                     onDelete={() => deleteTask(task.id)}
+                    onReschedule={() => updateTask(task.id, { dueDate: getTomorrowDateString() })}
                   />
                 ))}
               </View>
             )}
 
-            {/* Section: Anytime / No Time */}
+            {/* Section: Anytime Today */}
             {noTimeTasks.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Anytime</Text>
+                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Anytime Today</Text>
                 {noTimeTasks.map((task) => (
                   <SwipeableTaskRow
                     key={task.id}
@@ -341,6 +355,7 @@ export default function TodayScreen() {
                     onLongPress={() => setActionSheetTask(task)}
                     onToggleComplete={() => toggleTaskCompletion(task.id)}
                     onDelete={() => deleteTask(task.id)}
+                    onReschedule={() => updateTask(task.id, { dueDate: getTomorrowDateString() })}
                   />
                 ))}
               </View>
@@ -350,8 +365,8 @@ export default function TodayScreen() {
             {todayTasks.length === 0 && overdueTasks.length === 0 && (
               <EmptyState
                 icon="check"
-                title="No tasks yet"
-                subtitle="Your day is clear. Add a task to get started."
+                title="All clear for today!"
+                subtitle="Tap the + button below to add a new task."
               />
             )}
           </Animated.ScrollView>
@@ -367,78 +382,72 @@ export default function TodayScreen() {
         onTogglePin={() => actionSheetTask && toggleTaskPin(actionSheetTask.id)}
         onToggleFavorite={() => actionSheetTask && toggleTaskFavorite(actionSheetTask.id)}
         onEdit={() => actionSheetTask && router.push(`/task/${actionSheetTask.id}`)}
-        onReschedule={() => actionSheetTask && updateTask(actionSheetTask.id, { dueDate: getTodayDateString() })}
+        onReschedule={(dueDate, dueTime) =>
+          actionSheetTask && updateTask(actionSheetTask.id, { dueDate, dueTime })
+        }
         onDelete={() => actionSheetTask && deleteTask(actionSheetTask.id)}
       />
 
-      {/* Theme Quick Switcher Popover Modal */}
+      {/* Theme Selection Modal Popover */}
       <Modal
         visible={themePopoverVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setThemePopoverVisible(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setThemePopoverVisible(false)} />
+        <Pressable
+          style={[styles.popoverBackdrop, { backgroundColor: colors.modalBackdrop }]}
+          onPress={() => setThemePopoverVisible(false)}
+        >
           <View
             style={[
-              styles.popoverCard,
+              styles.popoverMenu,
               {
                 backgroundColor: isDark ? MaterialLayers.elevated.dark : colors.elevatedCard,
-                borderColor: isDark ? MaterialLayers.glass.borderDark : MaterialLayers.glass.borderLight,
+                borderColor: isDark ? MaterialLayers.elevated.borderDark : MaterialLayers.elevated.borderLight,
               },
             ]}
           >
-            <Text style={[styles.popoverTitle, { color: colors.textTertiary }]}>APPEARANCE MODE</Text>
-
-            {(['system', 'light', 'dark'] as ThemeMode[]).map((t) => {
-              const isSelected = mode === t;
+            {(['light', 'dark', 'system'] as ThemeMode[]).map((tMode) => {
+              const isSelected = mode === tMode;
               return (
                 <Pressable
-                  key={t}
+                  key={tMode}
                   onPress={() => {
-                    safeHaptics.selection();
-                    setThemeMode(t);
+                    haptics.selection();
+                    setThemeMode(tMode);
                     setThemePopoverVisible(false);
                   }}
                   style={({ pressed }) => [
-                    styles.popoverOption,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.accent + '18'
-                        : pressed
-                        ? colors.secondaryBackground
-                        : 'transparent',
-                    },
+                    styles.popoverItem,
+                    { backgroundColor: pressed ? colors.secondaryBackground : 'transparent' },
                   ]}
                 >
-                  <View style={styles.optionLeft}>
-                    {t === 'light' && <Sun size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
-                    {t === 'dark' && <Moon size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
-                    {t === 'system' && <Monitor size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
+                  <View style={styles.popoverItemLeft}>
+                    {tMode === 'light' && <Sun size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
+                    {tMode === 'dark' && <Moon size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
+                    {tMode === 'system' && <Monitor size={18} color={isSelected ? colors.accent : colors.textPrimary} />}
                     <Text
                       style={[
-                        styles.optionText,
+                        styles.popoverItemText,
                         {
                           color: isSelected ? colors.accent : colors.textPrimary,
-                          fontWeight: isSelected ? '700' : '500',
-                          textTransform: 'capitalize',
+                          fontWeight: isSelected ? '700' : '400',
                         },
                       ]}
                     >
-                      {t} Mode
+                      {tMode.charAt(0).toUpperCase() + tMode.slice(1)}
                     </Text>
                   </View>
-                  {isSelected && <Check size={18} color={colors.accent} />}
+                  {isSelected && <Check size={18} color={colors.accent} strokeWidth={2.5} />}
                 </Pressable>
               );
             })}
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </PrimarySurface>
   );
-
 }
 
 const styles = StyleSheet.create({
@@ -452,39 +461,13 @@ const styles = StyleSheet.create({
     maxWidth: MAX_CONTENT_WIDTH,
     flex: 1,
   },
-  topHeader: {
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  greetingText: {
-    ...TypographyScale.subhead,
-  },
-  dateText: {
-    ...TypographyScale.title1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs + 2,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
   suggestionCard: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
   },
   suggestionHeaderRow: {
     flexDirection: 'row',
@@ -495,37 +478,34 @@ const styles = StyleSheet.create({
   suggestionTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   suggestionTitle: {
-    ...TypographyScale.headline,
+    ...TypographyScale.footnote,
     fontWeight: '700',
   },
   dismissBtn: {
     padding: Spacing.xs,
   },
   suggestionDesc: {
-    ...TypographyScale.body,
-    lineHeight: 20,
+    ...TypographyScale.footnote,
     marginBottom: Spacing.sm,
   },
   suggestionActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: Spacing.xs,
   },
   suggestionActionBtn: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 3,
+    paddingVertical: Spacing.xs,
     borderRadius: Radii.pill,
   },
   suggestionActionText: {
-    ...TypographyScale.footnote,
-    fontWeight: '700',
+    ...TypographyScale.caption2,
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   progressCard: {
-    marginVertical: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   progressRow: {
     flexDirection: 'row',
@@ -537,10 +517,10 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     ...TypographyScale.headline,
+    marginBottom: 2,
   },
   progressSubtitle: {
     ...TypographyScale.footnote,
-    marginTop: 2,
   },
   streakBadge: {
     flexDirection: 'row',
@@ -550,11 +530,15 @@ const styles = StyleSheet.create({
     borderRadius: Radii.pill,
   },
   streakText: {
-    ...TypographyScale.footnote,
+    ...TypographyScale.caption1,
     fontWeight: '700',
   },
   section: {
-    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  sectionTitle: {
+    ...TypographyScale.title3,
+    marginBottom: Spacing.sm,
   },
   pinnedHeader: {
     flexDirection: 'row',
@@ -571,51 +555,53 @@ const styles = StyleSheet.create({
     ...TypographyScale.caption2,
     fontWeight: '700',
   },
-  sectionTitle: {
-    ...TypographyScale.headline,
+  overdueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  modalOverlay: {
+  overdueBadge: {
+    paddingHorizontal: Spacing.xs + 2,
+    paddingVertical: 2,
+    borderRadius: Radii.pill,
+    marginLeft: Spacing.xs,
+  },
+  overdueBadgeText: {
+    ...TypographyScale.caption2,
+    fontWeight: '700',
+  },
+  popoverBackdrop: {
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 80,
+    paddingTop: 70,
     paddingRight: Spacing.lg,
   },
-  popoverCard: {
-    width: 220,
-    borderRadius: Radii.xl,
-    padding: Spacing.md,
+  popoverMenu: {
+    width: 170,
+    borderRadius: Radii.lg,
     borderWidth: 1,
-    gap: Spacing.xs,
+    padding: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
     elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
   },
-  popoverTitle: {
-    ...TypographyScale.caption2,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  popoverOption: {
+  popoverItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: Radii.md,
   },
-  optionLeft: {
+  popoverItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  optionText: {
-    ...TypographyScale.footnote,
+  popoverItemText: {
+    ...TypographyScale.body,
   },
 });
-
-

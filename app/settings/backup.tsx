@@ -180,6 +180,27 @@ export default function BackupScreen() {
   const handlePickDocument = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // 1. Electron Windows Native Open File Dialog (via Secure IPC)
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).electronAPI?.openFile) {
+        const res = await (window as any).electronAPI.openFile({
+          filters: [
+            { name: 'Taskora Backup (*.json)', extensions: ['json'] },
+            { name: 'All Files (*.*)', extensions: ['*'] },
+          ],
+        });
+
+        if (res.isCancelled || !res.content) {
+          return;
+        }
+
+        const summary = RestoreService.validateAndPreviewBackup(res.content);
+        setPreviewSummary(summary);
+        setRestoreModalVisible(true);
+        return;
+      }
+
+      // 2. Standard Mobile / Web File Picker
       const res = await DocumentPicker.getDocumentAsync({
         type: ['application/json', 'text/plain', 'text/json', '*/*'],
         copyToCacheDirectory: true,

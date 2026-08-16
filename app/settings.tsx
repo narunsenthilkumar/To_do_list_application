@@ -8,13 +8,17 @@ import { PrimarySurface } from '../components/common/PrimarySurface';
 import { ElevatedCard } from '../components/common/ElevatedCard';
 import { AnimatedPressable } from '../components/common/AnimatedPressable';
 import { ThemeSegmentedControl } from '../components/settings/ThemeSegmentedControl';
+import { TimeFormatSelector } from '../components/settings/TimeFormatSelector';
+import { BackgroundEditor } from '../components/settings/BackgroundEditor';
 import { AnimatedToggle } from '../components/settings/AnimatedToggle';
 import { SettingsRow } from '../components/settings/SettingsRow';
 import { ImportDataSheet } from '../components/settings/ImportDataSheet';
+import { BrandLogo } from '../components/common/BrandLogo';
 import { useTheme } from '../store/ThemeContext';
 import { useTaskora } from '../store/useTaskora';
 import { Repository } from '../services/storage/repository';
 import { NotificationService } from '../services/notifications/notificationService';
+import { VoiceService, MicrophonePermissionStatus } from '../services/voice';
 import { MAX_CONTENT_WIDTH } from '../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
@@ -22,7 +26,7 @@ import { safeGoBack } from '../utils/navigation';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { mode, setThemeMode, colors } = useTheme();
+  const { mode, setThemeMode, timeFormat, setTimeFormat, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const {
     completedTasks,
@@ -35,6 +39,21 @@ export default function SettingsScreen() {
 
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [importSheetVisible, setImportSheetVisible] = useState(false);
+  const [micPermStatus, setMicPermStatus] = useState<MicrophonePermissionStatus>('undetermined');
+
+  React.useEffect(() => {
+    VoiceService.checkPermission().then(setMicPermStatus);
+  }, []);
+
+  const handleRequestMicPermission = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (micPermStatus === 'blocked') {
+      await VoiceService.openSettings();
+    } else {
+      const res = await VoiceService.requestPermission();
+      setMicPermStatus(res);
+    }
+  };
 
   const handleExportData = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -124,6 +143,18 @@ export default function SettingsScreen() {
               <ThemeSegmentedControl mode={mode} onSelectMode={setThemeMode} />
             </ElevatedCard>
 
+            {/* Time & Date Format Section */}
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>TIME & DATE</Text>
+            <ElevatedCard style={styles.cardSection}>
+              <TimeFormatSelector timeFormat={timeFormat} onSelectFormat={setTimeFormat} />
+            </ElevatedCard>
+
+            {/* Background & Ambience Editor */}
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>BACKGROUND & AMBIENCE</Text>
+            <ElevatedCard style={styles.cardSection}>
+              <BackgroundEditor />
+            </ElevatedCard>
+
             {/* Smart Productivity Suite */}
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>SMART FEATURES</Text>
             <ElevatedCard style={styles.cardSection}>
@@ -208,6 +239,25 @@ export default function SettingsScreen() {
                   />
                 }
               />
+
+              {smartSettings.voiceTasksEnabled && (
+                <>
+                  <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+                  <SettingsRow
+                    icon={<ShieldCheck size={20} color={micPermStatus === 'granted' ? colors.success : colors.warning} />}
+                    title="Microphone Permission"
+                    subtitle={
+                      micPermStatus === 'granted'
+                        ? 'Granted — Ready for on-device voice tasks'
+                        : micPermStatus === 'blocked'
+                        ? 'Blocked — Tap to open System Settings'
+                        : 'Tap to grant microphone access'
+                    }
+                    onPress={micPermStatus !== 'granted' ? handleRequestMicPermission : undefined}
+                    showChevron={micPermStatus !== 'granted'}
+                  />
+                </>
+              )}
 
               <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
 
@@ -335,14 +385,11 @@ export default function SettingsScreen() {
 
             {/* About Section */}
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>ABOUT</Text>
-            <ElevatedCard style={styles.cardSection}>
-              <SettingsRow
-                icon={<Info size={20} color={colors.textTertiary} />}
-                title="Version"
-                trailing={
-                  <Text style={[styles.rowValue, { color: colors.textTertiary }]}>1.0.0 (Phase 3 Build)</Text>
-                }
-              />
+            <ElevatedCard style={[styles.cardSection, { alignItems: 'center', paddingVertical: Spacing.lg }]}>
+              <BrandLogo size={56} animated withShadow style={{ marginBottom: Spacing.sm }} />
+              <Text style={[styles.aboutBrandTitle, { color: colors.textPrimary }]}>Taskora</Text>
+              <Text style={[styles.aboutTagline, { color: colors.textSecondary }]}>Premium Productivity</Text>
+              <Text style={[styles.aboutVersion, { color: colors.textTertiary }]}>Version 1.0.0 (Phase 3 Build)</Text>
             </ElevatedCard>
           </ScrollView>
         </View>
@@ -430,6 +477,20 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: Spacing.xs,
+  },
+  aboutBrandTitle: {
+    ...TypographyScale.title3,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  aboutTagline: {
+    ...TypographyScale.footnote,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  aboutVersion: {
+    ...TypographyScale.caption1,
+    marginTop: 4,
   },
 });
 

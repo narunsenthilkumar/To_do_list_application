@@ -185,6 +185,12 @@ export class LocalDatabase {
     return Array.from(this.cachedProjects.values()).filter((p) => !p.deletedAt);
   }
 
+  public static async getProjectById(id: string): Promise<Project | null> {
+    await this.init();
+    const proj = this.cachedProjects.get(id);
+    return proj && !proj.deletedAt ? proj : null;
+  }
+
   public static async insertProject(project: Omit<Project, 'createdAt' | 'updatedAt' | 'version'>): Promise<Project> {
     await this.init();
     const version = await LamportClock.tick();

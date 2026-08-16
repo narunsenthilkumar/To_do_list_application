@@ -1,13 +1,13 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, Pressable, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { ThemeColors } from '../../theme/tokens';
 import { SpringConfigs } from '../../theme/animations';
+import { haptics } from '../../services/haptics';
 
 interface TabBarItemProps {
   routeKey: string;
@@ -34,13 +34,17 @@ export const TabBarItem: React.FC<TabBarItemProps> = React.memo(({
   const iconSize = isSmallDevice ? 20 : 22;
   const fontSize = isSmallDevice ? 10 : 11;
 
+  useEffect(() => {
+    scale.value = withSpring(isFocused ? 1.06 : 1.0, SpringConfigs.snappy);
+  }, [isFocused]);
+
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, SpringConfigs.snappy);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    scale.value = withSpring(0.94, SpringConfigs.snappy);
+    haptics.light();
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1.0, SpringConfigs.snappy);
+    scale.value = withSpring(isFocused ? 1.06 : 1.0, SpringConfigs.snappy);
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -61,7 +65,7 @@ export const TabBarItem: React.FC<TabBarItemProps> = React.memo(({
         <IconComponent
           size={iconSize}
           color={isFocused ? colors.accent : colors.textTertiary}
-          strokeWidth={isFocused ? 2.4 : 1.8}
+          strokeWidth={isFocused ? 2.5 : 1.8}
         />
         <Text
           numberOfLines={1}

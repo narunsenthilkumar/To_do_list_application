@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Sparkles, Target, Bell, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../components/common/PrimarySurface';
+import { BrandLogo } from '../components/common/BrandLogo';
 import { useTheme } from '../store/ThemeContext';
 import { Repository } from '../services/storage/repository';
 import { NotificationService } from '../services/notifications/notificationService';
@@ -54,10 +55,14 @@ export default function OnboardingScreen() {
   return (
     <PrimarySurface style={styles.container}>
       <View style={styles.content}>
-        {/* Animated Icon Circle */}
-        <View style={[styles.iconWrapper, { backgroundColor: current.color + '20' }]}>
-          <IconComponent size={64} color={current.color} />
-        </View>
+        {/* Animated Brand Logo / Feature Icon */}
+        {step === 0 ? (
+          <BrandLogo size={88} animated withShadow style={{ marginBottom: Spacing.xl }} />
+        ) : (
+          <View style={[styles.iconWrapper, { backgroundColor: current.color + '20' }]}>
+            <IconComponent size={64} color={current.color} />
+          </View>
+        )}
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>{current.title}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{current.subtitle}</Text>

@@ -46,6 +46,24 @@ export function SyncStatusPill() {
           color: colors.textTertiary,
           icon: <Circle size={9} color={colors.textTertiary} />,
         };
+      case 'device_revoked':
+        return {
+          label: 'Revoked',
+          color: colors.error,
+          icon: <AlertTriangle size={11} color={colors.error} />,
+        };
+      case 'needs_pairing':
+        return {
+          label: 'Pair Device',
+          color: colors.accent,
+          icon: <RefreshCw size={11} color={colors.accent} />,
+        };
+      case 'manual_required':
+        return {
+          label: 'Manual Sync',
+          color: colors.accent,
+          icon: <RefreshCw size={11} color={colors.accent} />,
+        };
       case 'error':
         return {
           label: 'Sync Error',

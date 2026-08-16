@@ -10,6 +10,7 @@ import { TagChip } from './TagChip';
 import { Radii, Spacing, TypographyScale } from '../../theme/tokens';
 import { MaterialLayers } from '../../theme/materials';
 import { getTodayDateString } from '../../services/storage/repository';
+import { formatTaskTime } from '../../utils/timeFormatter';
 import { AnimatedPressable } from '../common/AnimatedPressable';
 
 interface TaskRowProps {
@@ -33,13 +34,15 @@ export const TaskRow: React.FC<TaskRowProps> = ({
   isSelected,
   onSelect,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, timeFormat } = useTheme();
 
-  const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
-  const totalSubtasks = task.subtasks.length;
+  const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+  const tags = Array.isArray(task.tags) ? task.tags : [];
+  const completedSubtasks = subtasks.filter((s) => s && s.completed).length;
+  const totalSubtasks = subtasks.length;
 
   const isToday = task.dueDate === getTodayDateString();
-  const isOverdue = !task.completed && task.dueDate && task.dueDate < getTodayDateString();
+  const isOverdue = !task.completed && !!task.dueDate && task.dueDate < getTodayDateString();
 
   return (
     <AnimatedPressable
@@ -128,7 +131,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
                 ]}
               >
                 {isToday ? 'Today' : task.dueDate}
-                {task.dueTime ? ` · ${task.dueTime}` : ''}
+                {task.dueTime ? ` · ${formatTaskTime(task.dueTime, timeFormat)}` : ''}
               </Text>
             </View>
           ) : null}
@@ -169,7 +172,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
           <PriorityBadge priority={task.priority} showText={false} />
 
           {/* Tags */}
-          {task.tags.map((tag) => (
+          {tags.map((tag) => (
             <TagChip key={tag} name={tag} />
           ))}
         </View>
@@ -249,4 +252,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

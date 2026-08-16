@@ -8,10 +8,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Check } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../store/ThemeContext';
 import { PriorityLevel } from '../../models/task';
 import { SpringConfigs } from '../../theme/animations';
+import { haptics } from '../../services/haptics';
 
 interface TaskCheckboxProps {
   completed: boolean;
@@ -75,7 +75,11 @@ export const TaskCheckbox: React.FC<TaskCheckboxProps> = ({
   });
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!completed) {
+      haptics.success();
+    } else {
+      haptics.selection();
+    }
     onToggle();
   };
 
@@ -114,4 +118,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

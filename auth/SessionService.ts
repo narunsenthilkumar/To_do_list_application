@@ -92,4 +92,12 @@ export class SessionService {
     this.currentSession = null;
     await SecureStorage.removeItem(this.SESSION_KEY);
   }
+
+  /**
+   * Logs out active session and resets to guest
+   */
+  public static async logout(): Promise<void> {
+    await this.clearSession();
+    await this.startGuestSession();
+  }
 }

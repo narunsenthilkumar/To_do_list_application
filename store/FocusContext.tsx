@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import * as Haptics from 'expo-haptics';
 import { FocusSession, FocusModeType, PomodoroSettings, StreakStats } from '../models/focus';
 import { Repository, getTodayDateString } from '../services/storage/repository';
+import { NotificationService } from '../services/notifications/notificationService';
+import { haptics } from '../services/haptics';
 
 interface FocusContextType {
   mode: FocusModeType;
@@ -89,11 +90,17 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const handleTimerCompletion = async () => {
     setIsActive(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptics.success();
 
     if (mode === 'work') {
       const newSessionCount = completedSessionsToday + 1;
       setCompletedSessionsToday(newSessionCount);
+
+      // Trigger cross-platform completion notification
+      await NotificationService.sendFocusCompletionNotification(
+        'Focus Session Completed! 🎉',
+        `You finished your ${settings.focusDuration} min focus session. Take a break!`
+      );
 
       // Save session log
       const newSession: FocusSession = {
@@ -116,23 +123,27 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } else {
       // Break finished, return to work
+      await NotificationService.sendFocusCompletionNotification(
+        'Break Ended ⚡',
+        'Ready to start your next focus session?'
+      );
       setMode('work');
       setSecondsRemaining(settings.focusDuration * 60);
     }
   };
 
   const startTimer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptics.medium();
     setIsActive(true);
   };
 
   const pauseTimer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.light();
     setIsActive(false);
   };
 
   const resetTimer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.light();
     setIsActive(false);
     if (mode === 'work') {
       setSecondsRemaining(settings.focusDuration * 60);
@@ -144,7 +155,7 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const skipSession = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptics.medium();
     setIsActive(false);
     if (mode === 'work') {
       setMode('shortBreak');

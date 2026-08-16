@@ -186,6 +186,37 @@ export class ExportService {
     uti: string
   ): Promise<{ success: boolean; fileUri?: string; isCancelled?: boolean }> {
     if (Platform.OS === 'web') {
+      // 1. Electron Windows Native Save File Dialog (via Secure IPC)
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.saveFile) {
+        try {
+          const isCSV = filename.endsWith('.csv');
+          const res = await (window as any).electronAPI.saveFile({
+            defaultPath: filename,
+            content,
+            filters: isCSV
+              ? [
+                  { name: 'CSV File (*.csv)', extensions: ['csv'] },
+                  { name: 'All Files (*.*)', extensions: ['*'] },
+                ]
+              : [
+                  { name: 'Taskora Backup (*.json)', extensions: ['json'] },
+                  { name: 'All Files (*.*)', extensions: ['*'] },
+                ],
+          });
+
+          if (res.isCancelled) {
+            return { success: true, isCancelled: true };
+          }
+          if (!res.success) {
+            throw new Error(res.error || 'Failed to save file');
+          }
+          return { success: true, fileUri: res.filePath };
+        } catch (e: any) {
+          throw new Error(`Windows file export failed: ${e?.message || 'Unknown error'}`);
+        }
+      }
+
+      // 2. Standard Web Browser Blob Download
       try {
         const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
         const url = URL.createObjectURL(blob);

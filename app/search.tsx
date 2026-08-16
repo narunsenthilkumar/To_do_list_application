@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search as SearchIcon, X, Pin, Star } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,15 +10,16 @@ import { EmptyState } from '../components/common/EmptyState';
 import { AnimatedPressable } from '../components/common/AnimatedPressable';
 import { useSearch, useTheme, useTasks } from '../store/useTaskora';
 import { PriorityLevel, Task } from '../models/task';
-import { Radii, Spacing, TypographyScale } from '../theme/tokens';
+import { Radii, Spacing, TypographyScale, Shadows } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
 import { getTodayDateString } from '../services/storage/repository';
 import { safeGoBack } from '../utils/navigation';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const [isFocused, setIsFocused] = useState(false);
   const {
     toggleTaskCompletion,
     toggleTaskPin,
@@ -52,14 +53,28 @@ export default function SearchScreen() {
         <AnimatedPressable profile="smallControl" onPress={() => safeGoBack(router)} style={styles.backBtn} accessibilityLabel="Go back">
           <ArrowLeft size={22} color={colors.textPrimary} />
         </AnimatedPressable>
-        <View style={[styles.searchBox, { backgroundColor: colors.secondaryBackground }]}>
-          <SearchIcon size={18} color={colors.textTertiary} style={{ marginRight: 8 }} />
+        <View
+          style={[
+            styles.searchBox,
+            {
+              backgroundColor: isFocused
+                ? (isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                : colors.secondaryBackground,
+              borderColor: isFocused ? colors.accent + '35' : 'transparent',
+            },
+            isFocused && Shadows.card,
+          ]}
+        >
+          <SearchIcon size={18} color={isFocused ? colors.accent : colors.textTertiary} style={{ marginRight: 8 }} />
           <TextInput
             autoFocus
             value={query}
             onChangeText={setQuery}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             placeholder="Search tasks, notes, tags..."
             placeholderTextColor={colors.textTertiary}
+            underlineColorAndroid="transparent"
             style={[styles.searchInput, { color: colors.textPrimary }]}
           />
           {query.length > 0 && (
@@ -225,10 +240,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 44,
     borderRadius: Radii.lg,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     ...TypographyScale.body,
+    paddingVertical: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   filterScroll: {
     flexDirection: 'row',

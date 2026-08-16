@@ -2,12 +2,12 @@ import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { Check, Edit3, Calendar, Trash2 } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { TaskRow } from './TaskRow';
 import { Task } from '../../models/task';
 import { Project } from '../../models/project';
 import { useTheme } from '../../store/ThemeContext';
 import { Radii, Spacing, TypographyScale } from '../../theme/tokens';
+import { haptics } from '../../services/haptics';
 
 interface SwipeableTaskRowProps {
   task: Task;
@@ -40,7 +40,10 @@ export const SwipeableTaskRow: React.FC<SwipeableTaskRowProps> = ({
   const renderLeftActions = () => {
     return (
       <Pressable
-        onPress={onToggleComplete}
+        onPress={() => {
+          onToggleComplete();
+          swipeableRef.current?.close();
+        }}
         style={[styles.leftAction, { backgroundColor: colors.success }]}
       >
         <Check size={22} color="#FFFFFF" strokeWidth={3} />
@@ -53,7 +56,10 @@ export const SwipeableTaskRow: React.FC<SwipeableTaskRowProps> = ({
     return (
       <View style={styles.rightActionsContainer}>
         <Pressable
-          onPress={onPress}
+          onPress={() => {
+            onPress();
+            swipeableRef.current?.close();
+          }}
           style={[styles.rightAction, { backgroundColor: colors.accent }]}
         >
           <Edit3 size={18} color="#FFFFFF" />
@@ -62,7 +68,10 @@ export const SwipeableTaskRow: React.FC<SwipeableTaskRowProps> = ({
 
         {onReschedule && (
           <Pressable
-            onPress={onReschedule}
+            onPress={() => {
+              onReschedule();
+              swipeableRef.current?.close();
+            }}
             style={[styles.rightAction, { backgroundColor: colors.warning }]}
           >
             <Calendar size={18} color="#FFFFFF" />
@@ -71,7 +80,10 @@ export const SwipeableTaskRow: React.FC<SwipeableTaskRowProps> = ({
         )}
 
         <Pressable
-          onPress={onDelete}
+          onPress={() => {
+            onDelete();
+            swipeableRef.current?.close();
+          }}
           style={[styles.rightAction, { backgroundColor: colors.error }]}
         >
           <Trash2 size={18} color="#FFFFFF" />
@@ -90,7 +102,7 @@ export const SwipeableTaskRow: React.FC<SwipeableTaskRowProps> = ({
       renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
       onSwipeableWillOpen={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        haptics.light();
       }}
     >
       <TaskRow
@@ -136,4 +148,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-

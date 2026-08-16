@@ -138,6 +138,30 @@ export class AccountService {
   }
 
   /**
+   * Restores or updates an account on this device from a validated pairing payload
+   */
+  public static async restoreOrUpdateAccountFromPairing(account: UserAccount): Promise<SessionState> {
+    const accounts = await this.loadAccounts();
+    const existingIndex = accounts.findIndex((a) => a.userId === account.userId);
+
+    if (existingIndex >= 0) {
+      accounts[existingIndex] = {
+        ...accounts[existingIndex],
+        ...account,
+        lastLoginAt: new Date().toISOString(),
+      };
+    } else {
+      accounts.push({
+        ...account,
+        lastLoginAt: new Date().toISOString(),
+      });
+    }
+
+    await this.saveAccounts(accounts);
+    return await SessionService.createSession(account);
+  }
+
+  /**
    * Logs out the current user and sets active session to guest
    */
   public static async logout(): Promise<SessionState> {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Trash2, Pin } from 'lucide-react-native';
+import { ArrowLeft, Trash2, Pin, Plus } from 'lucide-react-native';
 import * as Icons from 'lucide-react-native';
 import Animated, {
   useSharedValue,
@@ -16,10 +16,12 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 import { useTaskora, useTheme } from '../../store/useTaskora';
 import { Task } from '../../models/task';
-import { Spacing, TypographyScale, Radii } from '../../theme/tokens';
+import { Spacing, TypographyScale, Radii, Shadows } from '../../theme/tokens';
 import { SpringConfigs } from '../../theme/animations';
 import { getTodayDateString } from '../../services/storage/repository';
 import { safeGoBack } from '../../utils/navigation';
+import { haptics } from '../../services/haptics';
+import { calculateTasksProgress } from '../../utils/progress';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,12 +63,11 @@ export default function ProjectDetailScreen() {
   const todayStr = getTodayDateString();
 
   const activeTasks = projectTasks.filter((t) => !t.completed);
-  const upcomingTasks = projectTasks.filter((t) => !t.completed && t.dueDate && t.dueDate > todayStr);
+  const upcomingTasks = projectTasks.filter((t) => !t.completed && !!t.dueDate && t.dueDate > todayStr);
   const completedTasks = projectTasks.filter((t) => t.completed);
 
-  const totalTasksCount = projectTasks.length;
-  const completedTasksCount = completedTasks.length;
-  const progressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const { progressPercent, totalCount: totalTasksCount, completedCount: completedTasksCount } =
+    calculateTasksProgress(projectTasks);
 
   const animatedProgress = useSharedValue(0);
 
@@ -83,7 +84,11 @@ export default function ProjectDetailScreen() {
       <PrimarySurface>
         <View style={styles.notFoundContainer}>
           <Text style={[styles.notFoundText, { color: colors.textPrimary }]}>Project not found</Text>
-          <AnimatedPressable profile="primaryButton" onPress={() => safeGoBack(router)} style={[styles.backBtn, { backgroundColor: colors.accent }]}>
+          <AnimatedPressable
+            profile="primaryButton"
+            onPress={() => safeGoBack(router)}
+            style={[styles.backBtn, { backgroundColor: colors.accent }]}
+          >
             <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Go Back</Text>
           </AnimatedPressable>
         </View>
@@ -96,22 +101,40 @@ export default function ProjectDetailScreen() {
   const displayedTasks =
     activeTab === 'active' ? activeTasks : activeTab === 'upcoming' ? upcomingTasks : completedTasks;
 
+  // Requirement 11: Project deletion options
   const handleDeleteProject = () => {
+    haptics.warning();
     Alert.alert(
       `Delete "${project.name}"?`,
-      'Tasks in this project will be moved to Inbox.',
+      'What would you like to do with the tasks inside this project?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Move to Inbox',
+          onPress: async () => {
+            await deleteProject(project.id, 'move_to_inbox');
+            safeGoBack(router);
+          },
+        },
+        {
+          text: 'Delete All Tasks',
           style: 'destructive',
           onPress: async () => {
-            await deleteProject(project.id);
+            await deleteProject(project.id, 'delete_tasks');
             safeGoBack(router);
           },
         },
       ]
     );
+  };
+
+  // Requirement 10: Create task preselected to this project
+  const handleOpenAddTask = () => {
+    haptics.medium();
+    router.push({
+      pathname: '/modal/quick-add',
+      params: { initialProjectId: project.id },
+    } as any);
   };
 
   const bottomInset = Math.max(insets.bottom, 24) + 20;
@@ -120,13 +143,29 @@ export default function ProjectDetailScreen() {
     <PrimarySurface>
       {/* Navigation Header */}
       <View style={styles.navHeader}>
-        <AnimatedPressable profile="smallControl" onPress={() => safeGoBack(router)} style={styles.iconBtn} accessibilityLabel="Go back">
+        <AnimatedPressable
+          profile="smallControl"
+          onPress={() => safeGoBack(router)}
+          style={styles.iconBtn}
+          accessibilityLabel="Go back"
+        >
           <ArrowLeft size={22} color={colors.textPrimary} />
         </AnimatedPressable>
 
-        <AnimatedPressable profile="destructiveAction" onPress={handleDeleteProject} style={styles.iconBtn}>
-          <Trash2 size={20} color={colors.error} />
-        </AnimatedPressable>
+        <View style={styles.headerActions}>
+          <AnimatedPressable
+            profile="smallControl"
+            onPress={handleOpenAddTask}
+            style={[styles.addTaskHeaderBtn, { backgroundColor: colors.accent }]}
+          >
+            <Plus size={16} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+            <Text style={styles.addTaskHeaderText}>Add Task</Text>
+          </AnimatedPressable>
+
+          <AnimatedPressable profile="destructiveAction" onPress={handleDeleteProject} style={styles.iconBtn}>
+            <Trash2 size={20} color={colors.error} />
+          </AnimatedPressable>
+        </View>
       </View>
 
       {/* Project Info Header */}
@@ -143,7 +182,7 @@ export default function ProjectDetailScreen() {
           </View>
         </View>
 
-        {/* Animated Checklist Progress Indicator */}
+        {/* Animated Progress Indicator */}
         <View style={[styles.progressWrapper, { backgroundColor: colors.elevatedCard }]}>
           <View style={styles.progressHeaderRow}>
             <Text style={[styles.progressCountText, { color: colors.textPrimary }]}>
@@ -167,7 +206,10 @@ export default function ProjectDetailScreen() {
         {/* Filter Tabs */}
         <View style={[styles.tabBar, { backgroundColor: colors.secondaryBackground }]}>
           <Pressable
-            onPress={() => setActiveTab('active')}
+            onPress={() => {
+              haptics.selection();
+              setActiveTab('active');
+            }}
             style={[styles.tabItem, activeTab === 'active' && { backgroundColor: colors.elevatedCard }]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'active' ? colors.accent : colors.textTertiary }]}>
@@ -176,7 +218,10 @@ export default function ProjectDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveTab('upcoming')}
+            onPress={() => {
+              haptics.selection();
+              setActiveTab('upcoming');
+            }}
             style={[styles.tabItem, activeTab === 'upcoming' && { backgroundColor: colors.elevatedCard }]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'upcoming' ? colors.accent : colors.textTertiary }]}>
@@ -185,7 +230,10 @@ export default function ProjectDetailScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveTab('completed')}
+            onPress={() => {
+              haptics.selection();
+              setActiveTab('completed');
+            }}
             style={[styles.tabItem, activeTab === 'completed' && { backgroundColor: colors.elevatedCard }]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'completed' ? colors.accent : colors.textTertiary }]}>
@@ -224,6 +272,7 @@ export default function ProjectDetailScreen() {
                     onLongPress={() => setActionSheetTask(task)}
                     onToggleComplete={() => toggleTaskCompletion(task.id)}
                     onDelete={() => deleteTask(task.id)}
+                    onReschedule={() => setActionSheetTask(task)}
                   />
                 ))}
             </View>
@@ -243,6 +292,7 @@ export default function ProjectDetailScreen() {
                       onLongPress={() => setActionSheetTask(task)}
                       onToggleComplete={() => toggleTaskCompletion(task.id)}
                       onDelete={() => deleteTask(task.id)}
+                      onReschedule={() => setActionSheetTask(task)}
                     />
                   ))}
               </View>
@@ -258,6 +308,7 @@ export default function ProjectDetailScreen() {
               onLongPress={() => setActionSheetTask(task)}
               onToggleComplete={() => toggleTaskCompletion(task.id)}
               onDelete={() => deleteTask(task.id)}
+              onReschedule={() => setActionSheetTask(task)}
             />
           ))
         )}
@@ -280,7 +331,9 @@ export default function ProjectDetailScreen() {
         onTogglePin={() => actionSheetTask && toggleTaskPin(actionSheetTask.id)}
         onToggleFavorite={() => actionSheetTask && toggleTaskFavorite(actionSheetTask.id)}
         onEdit={() => actionSheetTask && router.push(`/task/${actionSheetTask.id}`)}
-        onReschedule={() => actionSheetTask && updateTask(actionSheetTask.id, { dueDate: getTodayDateString() })}
+        onReschedule={(dueDate, dueTime) =>
+          actionSheetTask && updateTask(actionSheetTask.id, { dueDate, dueTime })
+        }
         onDelete={() => actionSheetTask && deleteTask(actionSheetTask.id)}
       />
     </PrimarySurface>
@@ -294,6 +347,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  addTaskHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radii.pill,
+  },
+  addTaskHeaderText: {
+    ...TypographyScale.footnote,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   iconBtn: {
     padding: Spacing.xs,
@@ -409,5 +479,25 @@ const styles = StyleSheet.create({
     ...TypographyScale.headline,
     marginBottom: Spacing.sm,
   },
+  floatingCtaContainer: {
+    position: 'absolute',
+    left: Spacing.lg,
+    right: Spacing.lg,
+    alignItems: 'center',
+  },
+  floatingAddTaskBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radii.pill,
+    width: '100%',
+    maxWidth: 380,
+  },
+  floatingAddTaskText: {
+    ...TypographyScale.headline,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
 });
-

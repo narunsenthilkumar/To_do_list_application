@@ -51,8 +51,15 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#38BDF8"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Taskora uses your microphone to transcribe and create tasks from your voice.",
+          "speechRecognitionPermission": "Taskora uses on-device speech recognition to transcribe your tasks."
         }
       ]
     ],

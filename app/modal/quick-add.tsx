@@ -10,7 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   Calendar,
   Clock,
@@ -41,6 +41,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useTaskora, useTheme } from '../../store/useTaskora';
 import { safeHaptics } from '../../utils/haptics';
+import { formatTaskTime } from '../../utils/timeFormatter';
 import {
   NaturalLanguageParser,
   CategoryEngine,
@@ -59,7 +60,8 @@ import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 
 export default function QuickAddModal() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { initialProjectId } = useLocalSearchParams<{ initialProjectId?: string }>();
+  const { colors, isDark, timeFormat } = useTheme();
   const insets = useSafeAreaInsets();
   const { addTask, projects, smartSettings } = useTaskora();
 
@@ -71,7 +73,7 @@ export default function QuickAddModal() {
   const [priority, setPriority] = useState<PriorityLevel>('none');
   const [category, setCategory] = useState<string>('General');
   const [estimatedDuration, setEstimatedDuration] = useState<number>(30);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjectId);
   const [selectedTags] = useState<string[]>([]);
   const [reminder, setReminder] = useState<ReminderOption>('none');
   const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('never');
@@ -94,7 +96,19 @@ export default function QuickAddModal() {
   useEffect(() => {
     sheetTranslateY.value = withSpring(0, SpringConfigs.modalSheet);
     backdropOpacity.value = withTiming(1, { duration: 250 });
+
+    return () => {
+      VoiceService.stopListening();
+      VoiceService.setAudioLevelCallback(null);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isListening) {
+      pulseScale.value = withTiming(1, { duration: 200 });
+      VoiceService.setAudioLevelCallback(null);
+    }
+  }, [isListening]);
 
   const handleClose = () => {
     if (isListening) {
@@ -177,30 +191,46 @@ export default function QuickAddModal() {
 
     pulseScale.value = withRepeat(
       withSequence(
-        withTiming(1.2, { duration: 600 }),
-        withTiming(0.9, { duration: 600 })
+        withTiming(1.15, { duration: 600 }),
+        withTiming(0.95, { duration: 600 })
       ),
       -1,
       true
     );
 
-    VoiceService.startListening(
+    VoiceService.setAudioLevelCallback((level: number) => {
+      if (level > 10) {
+        const targetScale = 1.0 + Math.min(0.4, (level / 100) * 0.4);
+        pulseScale.value = withSpring(targetScale, { damping: 10, stiffness: 200 });
+      }
+    });
+
+    await VoiceService.startListening(
       (result: VoiceResult) => {
         setVoiceSpokenText(result.text);
-        if (result.isFinal) {
-          setRawText(result.text);
+        if (result.isFinal && result.text.trim()) {
+          setRawText(result.text.trim());
           setIsListening(false);
+          VoiceService.stopListening();
           safeHaptics.notification(Haptics.NotificationFeedbackType.Success);
         }
       },
       (error: string) => {
-        console.warn('Voice recognition error:', error);
-        setIsListening(false);
+        console.warn('Voice recognition notice:', error);
       },
       () => {
         setIsListening(false);
       }
     );
+  };
+
+  const finishVoiceInput = () => {
+    if (voiceSpokenText.trim()) {
+      setRawText(voiceSpokenText.trim());
+    }
+    VoiceService.stopListening();
+    setIsListening(false);
+    safeHaptics.notification(Haptics.NotificationFeedbackType.Success);
   };
 
   const cancelVoiceInput = () => {
@@ -431,7 +461,9 @@ export default function QuickAddModal() {
                 {dueTime && (
                   <View style={[styles.smartChip, { backgroundColor: colors.elevatedCard }]}>
                     <Clock size={13} color={colors.accent} style={{ marginRight: 4 }} />
-                    <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>{dueTime}</Text>
+                    <Text style={[styles.smartChipText, { color: colors.textPrimary }]}>
+                      {formatTaskTime(dueTime, timeFormat)}
+                    </Text>
                   </View>
                 )}
 
@@ -686,20 +718,24 @@ export default function QuickAddModal() {
               {voiceSpokenText || 'Say your task (e.g. "Buy groceries tomorrow at 6 PM")'}
             </Text>
 
-            {/* Apple style 3 pulsing dots */}
-            <View style={styles.dotsRow}>
-              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-            </View>
+            {/* Action buttons */}
+            <View style={styles.voiceActionsRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={cancelVoiceInput}
+                style={[styles.voiceCancelBtn, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <Text style={[styles.voiceCancelText, { color: colors.textPrimary }]}>Cancel</Text>
+              </AnimatedPressable>
 
-            <AnimatedPressable
-              profile="smallControl"
-              onPress={cancelVoiceInput}
-              style={[styles.voiceCancelBtn, { backgroundColor: colors.secondaryBackground }]}
-            >
-              <Text style={[styles.voiceCancelText, { color: colors.textPrimary }]}>Cancel</Text>
-            </AnimatedPressable>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={finishVoiceInput}
+                style={[styles.voiceDoneBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={styles.voiceDoneText}>Done Speaking</Text>
+              </AnimatedPressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -759,6 +795,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 46,
     paddingVertical: Spacing.sm,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   micBtn: {
     width: 36,
@@ -875,6 +921,15 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     minHeight: 60,
     marginBottom: Spacing.sm,
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   subtaskInputRow: {
     flexDirection: 'row',
@@ -887,6 +942,15 @@ const styles = StyleSheet.create({
     ...TypographyScale.body,
     padding: Spacing.sm,
     borderRadius: Radii.md,
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   addSubtaskBtn: {
     width: 36,
@@ -961,12 +1025,27 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   voiceCancelBtn: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radii.pill,
   },
   voiceCancelText: {
     ...TypographyScale.footnote,
     fontWeight: '700',
+  },
+  voiceActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  voiceDoneBtn: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radii.pill,
+  },
+  voiceDoneText: {
+    ...TypographyScale.footnote,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

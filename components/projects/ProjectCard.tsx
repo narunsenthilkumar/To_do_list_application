@@ -7,13 +7,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Icons from 'lucide-react-native';
 import { Project } from '../../models/project';
+import { Task } from '../../models/task';
 import { ElevatedCard } from '../common/ElevatedCard';
 import { useTheme } from '../../store/ThemeContext';
 import { Radii, Spacing, TypographyScale } from '../../theme/tokens';
 import { SpringConfigs } from '../../theme/animations';
+import { calculateTasksProgress } from '../../utils/progress';
 
 interface ProjectCardProps {
   project: Project;
+  tasks?: Task[];
   activeTaskCount: number;
   completedTaskCount: number;
   onPress: () => void;
@@ -21,14 +24,14 @@ interface ProjectCardProps {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
   project,
+  tasks = [],
   activeTaskCount,
   completedTaskCount,
   onPress,
 }) => {
   const { colors } = useTheme();
 
-  const total = activeTaskCount + completedTaskCount;
-  const progressPercent = total > 0 ? Math.round((completedTaskCount / total) * 100) : 0;
+  const { progressPercent } = calculateTasksProgress(tasks);
 
   const animatedWidth = useSharedValue(0);
 
@@ -158,4 +161,3 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
-

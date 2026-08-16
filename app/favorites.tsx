@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Star, Pin, Search, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import { AnimatedPressable } from '../components/common/AnimatedPressable';
 import { useTaskora, useTheme } from '../store/useTaskora';
 import { Task } from '../models/task';
 import { MAX_CONTENT_WIDTH } from '../theme/responsive';
-import { Spacing, TypographyScale, Radii } from '../theme/tokens';
+import { Spacing, TypographyScale, Radii, Shadows } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
 import { getTodayDateString } from '../services/storage/repository';
 import { safeGoBack } from '../utils/navigation';
@@ -38,6 +38,7 @@ export default function FavoritesScreen() {
   } = useTaskora();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [actionSheetTask, setActionSheetTask] = useState<Task | null>(null);
   const scrollY = useSharedValue(0);
 
@@ -106,13 +107,27 @@ export default function FavoritesScreen() {
           {/* Search Bar */}
           {favoriteTasks.length > 0 && (
             <View style={styles.searchContainer}>
-              <View style={[styles.searchBox, { backgroundColor: colors.secondaryBackground }]}>
-                <Search size={18} color={colors.textTertiary} style={{ marginRight: 8 }} />
+              <View
+                style={[
+                  styles.searchBox,
+                  {
+                    backgroundColor: isSearchFocused
+                      ? (isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                      : colors.secondaryBackground,
+                    borderColor: isSearchFocused ? colors.accent + '35' : 'transparent',
+                  },
+                  isSearchFocused && Shadows.card,
+                ]}
+              >
+                <Search size={18} color={isSearchFocused ? colors.accent : colors.textTertiary} style={{ marginRight: 8 }} />
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
                   placeholder="Search favorites..."
                   placeholderTextColor={colors.textTertiary}
+                  underlineColorAndroid="transparent"
                   style={[styles.searchInput, { color: colors.textPrimary }]}
                 />
                 {searchQuery.length > 0 && (
@@ -263,10 +278,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 42,
     borderRadius: Radii.lg,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     ...TypographyScale.body,
+    paddingVertical: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,

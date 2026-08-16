@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../../components/common/PrimarySurface';
 import { ElevatedCard } from '../../components/common/ElevatedCard';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
+import { BrandLogo } from '../../components/common/BrandLogo';
 import { AccountService } from '../../auth/AccountService';
 import { useTheme } from '../../store/ThemeContext';
 import { Spacing, TypographyScale, Radii, Shadows } from '../../theme/tokens';
@@ -25,26 +26,23 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!displayName.trim()) {
-      Alert.alert('Missing Name', 'Please enter your name.');
+    if (!displayName.trim() || !username.trim() || !email.trim() || !password) {
+      Alert.alert('Missing Fields', 'Please fill in all required fields.');
       return;
     }
-    if (!username.trim() && !email.trim()) {
-      Alert.alert('Missing Username or Email', 'Please enter a username or email address.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      Alert.alert('Short Password', 'Password must be at least 6 characters.');
-      return;
-    }
+
     if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match. Please re-enter.');
+      Alert.alert('Password Mismatch', 'Passwords do not match. Please verify.');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password should be at least 6 characters.');
       return;
     }
 
     setIsLoading(true);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await AccountService.register({
         displayName: displayName.trim(),
         username: username.trim(),
@@ -86,9 +84,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.header}>
-            <View style={[styles.logoCircle, { backgroundColor: colors.accent }]}>
-              <UserPlus size={32} color="#FFFFFF" strokeWidth={2.5} />
-            </View>
+            <BrandLogo size={68} animated withShadow style={{ marginBottom: Spacing.sm }} />
             <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>Create Account</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Your identity across paired devices
