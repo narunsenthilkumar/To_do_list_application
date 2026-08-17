@@ -1,6 +1,6 @@
 {
   "name": "taskora",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -54,10 +54,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "expo export -p web",
+    "build:electron": "npm run build:web",
     "electron:dev": "electron electron/main.cjs",
     "electron:start": "npm run build:web && electron electron/main.cjs",
     "electron:package": "npm run build:web && electron-forge package",
     "electron:make": "npm run build:web && electron-forge make",
+    "electron:dist": "npm run build:web && electron-builder",
     "package": "npm run build:web && electron-forge package",
     "make": "npm run build:web && electron-forge make"
   },

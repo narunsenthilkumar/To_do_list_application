@@ -43,9 +43,11 @@ export default function OnboardingScreen() {
     if (step < SLIDES.length - 1) {
       setStep(step + 1);
     } else {
-      await NotificationService.requestPermissions();
+      try {
+        await NotificationService.requestPermissions();
+      } catch {}
       await Repository.saveOnboardingDone(true);
-      router.replace('/(tabs)');
+      router.replace('/');
     }
   };
 

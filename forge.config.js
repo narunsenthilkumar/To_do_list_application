@@ -14,6 +14,21 @@ module.exports = {
     appCopyright: 'Copyright © 2026 Taskora',
     icon: path.resolve(__dirname, 'assets/branding/taskora-icon'),
     prune: true,
+    afterCopy: [
+      (buildPath, electronVersion, platform, arch, callback) => {
+        try {
+          const pkgPath = path.join(buildPath, 'package.json');
+          if (fs.existsSync(pkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            pkg.main = 'electron/main.cjs';
+            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+          }
+          callback();
+        } catch (err) {
+          callback(err);
+        }
+      },
+    ],
     ignore: (file) => {
       if (!file) return false;
       const normalized = file.replace(/\\/g, '/');
@@ -32,6 +47,14 @@ module.exports = {
   rebuildConfig: {},
   hooks: {
     packageAfterCopy: async (config, buildPath) => {
+      const pkgPath = path.join(buildPath, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        pkg.main = 'electron/main.cjs';
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+      }
+    },
+    packageAfterPrune: async (config, buildPath) => {
       const pkgPath = path.join(buildPath, 'package.json');
       if (fs.existsSync(pkgPath)) {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));

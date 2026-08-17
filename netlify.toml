@@ -1,0 +1,70 @@
+[build]
+  command = "npm run build:web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  CI = "false"
+
+# Dynamic route rewrites for Expo Router export
+[[redirects]]
+  from = "/task/*"
+  to = "/task/[id].html"
+  status = 200
+
+[[redirects]]
+  from = "/project/*"
+  to = "/project/[id].html"
+  status = 200
+
+[[redirects]]
+  from = "/today"
+  to = "/today.html"
+  status = 200
+
+[[redirects]]
+  from = "/sync"
+  to = "/sync/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/modal/quick-add"
+  to = "/modal/quick-add.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings/backup"
+  to = "/settings/backup.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings/privacy-diagnostics"
+  to = "/settings/privacy-diagnostics.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth/login"
+  to = "/auth/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth/register"
+  to = "/auth/register.html"
+  status = 200
+
+# SPA fallback redirect for client-side navigation
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/_expo/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -82,6 +82,7 @@ function RootStack() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="today" options={{ headerShown: false }} />
         <Stack.Screen name="task/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="project/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="modal/quick-add" options={{ presentation: 'transparentModal', animation: 'fade' }} />

@@ -59,7 +59,11 @@ export class NotificationService {
         try {
           if (Notification.permission === 'granted') return true;
           if (Notification.permission !== 'denied') {
-            const status = await Notification.requestPermission();
+            const permPromise = Notification.requestPermission();
+            const timeoutPromise = new Promise<NotificationPermission>((resolve) =>
+              setTimeout(() => resolve(Notification.permission), 1200)
+            );
+            const status = await Promise.race([permPromise, timeoutPromise]);
             return status === 'granted';
           }
         } catch {}

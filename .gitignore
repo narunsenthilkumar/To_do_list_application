@@ -41,3 +41,9 @@ yarn-error.*
 /android
 
 out/
+dist-electron/
+*.exe
+*.blockmap
+*.asar
+# Local Netlify folder
+.netlify
