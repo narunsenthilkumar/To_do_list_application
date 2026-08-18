@@ -1,0 +1,6 @@
+(node:18916) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `Taskora --trace-deprecation ...` to show where the warning was created)
+[18916:0818/182956.124:INFO:CONSOLE:15372] "[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.", source: http://127.0.0.1:50424/_expo/static/js/web/index-a974b64074f26898d169fd6c6f5e3b1c.js (15372)
+[18916:0818/182956.216:INFO:CONSOLE:154] "Uncaught Error: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.", source: http://127.0.0.1:50424/_expo/static/js/web/index-a974b64074f26898d169fd6c6f5e3b1c.js (154)
+[18916:0818/182956.231:INFO:CONSOLE:15482] "[MigrationRunner] Running Phase 4 database migration...", source: http://127.0.0.1:50424/_expo/static/js/web/index-a974b64074f26898d169fd6c6f5e3b1c.js (15482)
+[18916:0818/182956.267:INFO:CONSOLE:15482] "[MigrationRunner] Phase 4 migration completed successfully.", source: http://127.0.0.1:50424/_expo/static/js/web/index-a974b64074f26898d169fd6c6f5e3b1c.js (15482)

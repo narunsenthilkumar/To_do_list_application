@@ -1,0 +1,5 @@
+(node:2836) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `Taskora --trace-deprecation ...` to show where the warning was created)
+[2836:0818/212225.641:INFO:CONSOLE:15601] "[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.", source: http://127.0.0.1:53370/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15601)
+[2836:0818/212225.768:INFO:CONSOLE:15721] "[MigrationRunner] Running Phase 4 database migration...", source: http://127.0.0.1:53370/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15721)
+[2836:0818/212225.795:INFO:CONSOLE:15721] "[MigrationRunner] Phase 4 migration completed successfully.", source: http://127.0.0.1:53370/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15721)

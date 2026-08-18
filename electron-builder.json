@@ -20,20 +20,18 @@
       {
         "target": "nsis",
         "arch": ["x64"]
-      },
-      {
-        "target": "portable",
-        "arch": ["x64"]
       }
     ],
     "icon": "assets/branding/taskora-icon.ico",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "Taskora-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
+    "perMachine": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Taskora"
+    "shortcutName": "Taskora",
+    "runAfterFinish": true
   }
 }

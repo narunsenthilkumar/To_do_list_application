@@ -46,6 +46,7 @@
     "@electron/fuses": "^1.8.0",
     "@types/react": "~19.2.2",
     "electron": "^43.4.0",
+    "electron-builder": "^25.1.8",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -53,15 +54,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export -p web",
+    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path dist-electron) { Remove-Item -Recurse -Force dist-electron }; if (Test-Path out) { Remove-Item -Recurse -Force out }\"",
+    "build:web": "npm run clean && expo export -p web",
     "build:electron": "npm run build:web",
     "electron:dev": "electron electron/main.cjs",
     "electron:start": "npm run build:web && electron electron/main.cjs",
-    "electron:package": "npm run build:web && electron-forge package",
-    "electron:make": "npm run build:web && electron-forge make",
-    "electron:dist": "npm run build:web && electron-builder",
-    "package": "npm run build:web && electron-forge package",
-    "make": "npm run build:web && electron-forge make"
+    "electron:dist": "npm run build:web && electron-builder"
   },
   "private": true
 }

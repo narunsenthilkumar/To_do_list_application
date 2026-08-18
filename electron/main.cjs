@@ -29,6 +29,58 @@ const MIME_TYPES = {
   '.map': 'application/json',
 };
 
+function getDistPath() {
+  const candidates = [
+    path.resolve(__dirname, '../dist'),
+    path.join(app.getAppPath(), 'dist'),
+    path.join(process.resourcesPath, 'app.asar/dist'),
+    path.join(process.resourcesPath, 'dist'),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c) && fs.existsSync(path.join(c, 'index.html'))) {
+        return c;
+      }
+    } catch {}
+  }
+  return path.resolve(__dirname, '../dist');
+}
+
+function getAssetPath(...relativeSegments) {
+  const candidates = [
+    path.resolve(__dirname, '..', ...relativeSegments),
+    path.join(app.getAppPath(), ...relativeSegments),
+    path.join(process.resourcesPath, ...relativeSegments),
+    path.join(process.resourcesPath, 'app.asar', ...relativeSegments),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) {
+        return c;
+      }
+    } catch {}
+  }
+  return path.resolve(__dirname, '..', ...relativeSegments);
+}
+
+function sendFile(res, filePath, contentType) {
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-cache',
+    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://127.0.0.1:* data: blob:;",
+  });
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', (err) => {
+    console.error('[Static Server Stream Error]', err);
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+    }
+    res.end('Server Stream Error');
+  });
+  stream.pipe(res);
+}
+
 /**
  * Starts an embedded local HTTP server on 127.0.0.1 to serve the static Expo Web build.
  * This guarantees the HTML5 History API (Expo Router navigation) works flawlessly without
@@ -40,8 +92,7 @@ function startLocalServer() {
   }
 
   return new Promise((resolve, reject) => {
-    // Resolve path to dist (supports both unpacked dev and packaged asar/electron-forge builds)
-    const distPath = path.resolve(__dirname, '../dist');
+    const distPath = getDistPath();
 
     localServer = http.createServer((req, res) => {
       try {
@@ -50,8 +101,8 @@ function startLocalServer() {
 
         let filePath = path.normalize(path.join(distPath, pathname));
 
-        // Prevent path traversal
-        if (!filePath.startsWith(distPath)) {
+        // Prevent path traversal (case-insensitive on Windows)
+        if (!filePath.toLowerCase().startsWith(distPath.toLowerCase())) {
           res.writeHead(403, { 'Content-Type': 'text/plain' });
           return res.end('Forbidden');
         }
@@ -60,47 +111,33 @@ function startLocalServer() {
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
           const ext = path.extname(filePath).toLowerCase();
           const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-          res.writeHead(200, {
-            'Content-Type': contentType,
-            'Access-Control-Allow-Origin': '*',
-          });
-          return fs.createReadStream(filePath).pipe(res);
+          return sendFile(res, filePath, contentType);
         }
 
         // 2. Directory match with index.html
         const dirIndex = path.join(filePath, 'index.html');
         if (fs.existsSync(dirIndex) && fs.statSync(dirIndex).isFile()) {
-          res.writeHead(200, {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          });
-          return fs.createReadStream(dirIndex).pipe(res);
+          return sendFile(res, dirIndex, 'text/html; charset=utf-8');
         }
 
-        // 3. Fallback for static html routes (e.g. /inbox -> /inbox.html if exists)
+        // 3. Fallback for static html routes
         const htmlRoute = filePath + '.html';
         if (fs.existsSync(htmlRoute) && fs.statSync(htmlRoute).isFile()) {
-          res.writeHead(200, {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          });
-          return fs.createReadStream(htmlRoute).pipe(res);
+          return sendFile(res, htmlRoute, 'text/html; charset=utf-8');
         }
 
-        // 4. SPA Fallback: serve root index.html
+        // 4. SPA Fallback: serve root index.html for client routes (/today, /inbox, /projects, /calendar, /focus, /settings, /sync, etc.)
         const rootIndex = path.join(distPath, 'index.html');
         if (fs.existsSync(rootIndex) && fs.statSync(rootIndex).isFile()) {
-          res.writeHead(200, {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          });
-          return fs.createReadStream(rootIndex).pipe(res);
+          return sendFile(res, rootIndex, 'text/html; charset=utf-8');
         }
 
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
       } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+        }
         res.end('Server Error: ' + err.message);
       }
     });
@@ -125,7 +162,6 @@ function setupSessionPermissions(ses) {
   if (!ses) return;
 
   ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
-    console.log(`[MIC] Electron permission check for "${permission}" from ${requestingOrigin}`);
     if (
       permission === 'media' ||
       permission === 'audioCapture' ||
@@ -138,22 +174,23 @@ function setupSessionPermissions(ses) {
   });
 
   ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    console.log(`[MIC] Electron permission requested for "${permission}"`);
     if (
       permission === 'media' ||
       permission === 'audioCapture' ||
       permission === 'microphone' ||
       permission === 'notifications'
     ) {
-      console.log(`[MIC] Electron permission granted for "${permission}"`);
       return callback(true);
     }
-    console.log(`[MIC] Electron permission rejected for "${permission}"`);
     callback(false);
   });
 }
 
 async function createWindow() {
+  const iconPath = process.platform === 'win32'
+    ? getAssetPath('assets/branding/taskora-icon.ico')
+    : getAssetPath('assets/branding/taskora-icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -161,11 +198,7 @@ async function createWindow() {
     minHeight: 600,
     title: 'Taskora',
     backgroundColor: '#0F172A',
-    icon:
-      process.platform === 'win32' &&
-      fs.existsSync(path.join(__dirname, '../assets/branding/taskora-icon.ico'))
-        ? path.join(__dirname, '../assets/branding/taskora-icon.ico')
-        : path.join(__dirname, '../assets/branding/taskora-icon.png'),
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -187,7 +220,7 @@ async function createWindow() {
     mainWindow.loadURL(targetUrl);
   } catch (error) {
     console.error('Failed to start local server, falling back to direct load:', error);
-    const indexPath = path.join(__dirname, '../dist/index.html');
+    const indexPath = path.join(getDistPath(), 'index.html');
     if (fs.existsSync(indexPath)) {
       mainWindow.loadFile(indexPath);
     }
@@ -435,10 +468,11 @@ ipcMain.handle('dialog:openFile', async (event, { filters }) => {
 ipcMain.handle('notification:show', async (event, { title, body }) => {
   try {
     if (Notification.isSupported()) {
+      const notifIcon = getAssetPath('assets/branding/taskora-icon.png');
       new Notification({
         title: title || 'Taskora',
         body: body || '',
-        icon: path.join(__dirname, '../assets/branding/taskora-icon.png'),
+        icon: fs.existsSync(notifIcon) ? notifIcon : undefined,
       }).show();
       return true;
     }

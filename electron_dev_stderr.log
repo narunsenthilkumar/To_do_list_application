@@ -1,0 +1,11 @@
+[19008:0818/190456.989:INFO:CONSOLE:15601] "[expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.", source: http://127.0.0.1:52844/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15601)
+[19008:0818/190457.009:INFO:CONSOLE:2] "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security
+  Policy set or a policy with "unsafe-eval" enabled. This exposes users of
+  this app to unnecessary security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.", source: node:electron/js2c/sandbox_bundle (2)
+[19008:0818/190457.085:INFO:CONSOLE:15721] "[MigrationRunner] Running Phase 4 database migration...", source: http://127.0.0.1:52844/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15721)
+[19008:0818/190457.104:INFO:CONSOLE:15721] "[MigrationRunner] Phase 4 migration completed successfully.", source: http://127.0.0.1:52844/_expo/static/js/web/index-8faf9e0c84499d9a6c17b65529d0f2aa.js (15721)
