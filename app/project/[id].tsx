@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Trash2, Pin, Plus } from 'lucide-react-native';
 import * as Icons from 'lucide-react-native';
@@ -22,12 +22,23 @@ import { getTodayDateString } from '../../services/storage/repository';
 import { safeGoBack } from '../../utils/navigation';
 import { haptics } from '../../services/haptics';
 import { calculateTasksProgress } from '../../utils/progress';
+import { WindowsDesktopShell } from '../../components/desktop/WindowsDesktopShell';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialView="projects" />;
+  }
+
   const {
     projects,
     tasks,
@@ -59,7 +70,9 @@ export default function ProjectDetailScreen() {
     return aliases[name] || Icons.Folder;
   };
 
-  const projectTasks = project ? tasks.filter((t) => t.projectId === project.id) : [];
+  const projectTasks = project
+    ? tasks.filter((t) => (t.projectIds ? t.projectIds.includes(project.id) : t.projectId === project.id))
+    : [];
   const todayStr = getTodayDateString();
 
   const activeTasks = projectTasks.filter((t) => !t.completed);

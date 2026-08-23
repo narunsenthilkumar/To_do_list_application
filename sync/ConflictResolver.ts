@@ -70,8 +70,16 @@ export class ConflictResolver {
     // Merge tags
     const mergedTags = Array.from(new Set([...(base.tags || []), ...(secondary.tags || [])]));
 
+    // Merge projectIds
+    const baseProjectIds = base.projectIds || (base.projectId ? [base.projectId] : []);
+    const secondaryProjectIds = secondary.projectIds || (secondary.projectId ? [secondary.projectId] : []);
+    const mergedProjectIds = Array.from(new Set([...baseProjectIds, ...secondaryProjectIds]));
+
     const resolved: Task = {
       ...base,
+      projectIds: mergedProjectIds,
+      projectId: mergedProjectIds[0] || base.projectId,
+      inbox: typeof base.inbox === 'boolean' ? base.inbox : secondary.inbox,
       tags: mergedTags,
       subtasks: Array.from(subtaskMap.values()),
       version: Math.max(localTask.version || 1, remoteTask.version || 1) + 1,

@@ -41,6 +41,8 @@ export interface Task {
   dueTime?: string; // HH:mm format
   priority: PriorityLevel;
   projectId?: string;
+  projectIds?: string[];
+  inbox?: boolean;
   tags: string[];
   subtasks: Subtask[];
   reminder?: ReminderOption;

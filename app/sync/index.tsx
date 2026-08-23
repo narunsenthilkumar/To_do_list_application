@@ -35,7 +35,10 @@ import {
   LogOut,
   Edit2,
   AlertTriangle,
+  Radio,
 } from 'lucide-react-native';
+import { NearbySyncModal } from '../../components/sync/NearbySyncModal';
+import { NearbyCapability } from '../../sync/nearby/NearbyCapability';
 import { PrimarySurface } from '../../components/common/PrimarySurface';
 import { ElevatedCard } from '../../components/common/ElevatedCard';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
@@ -50,13 +53,23 @@ import { SessionService } from '../../auth/SessionService';
 import { useTheme } from '../../store/ThemeContext';
 import { MAX_CONTENT_WIDTH } from '../../theme/responsive';
 import { Spacing, TypographyScale, Radii, Shadows } from '../../theme/tokens';
-import { getBottomContentInset } from '../../theme/materials';
 import { safeGoBack } from '../../utils/navigation';
+import { WindowsDesktopShell } from '../../components/desktop/WindowsDesktopShell';
+import { getBottomContentInset } from '../../theme/materials';
 
 export default function SyncScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialView="sync" />;
+  }
 
   const [currentDeviceId, setCurrentDeviceId] = useState('');
   const [currentDeviceName, setCurrentDeviceName] = useState('');
@@ -65,6 +78,9 @@ export default function SyncScreen() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(SyncEngine.getStatus());
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTimeStr, setLastSyncTimeStr] = useState<string | null>(null);
+
+  // Nearby Sync Modal state
+  const [nearbyModalVisible, setNearbyModalVisible] = useState(false);
 
   // Pairing Modal state
   const [pairModalVisible, setPairModalVisible] = useState(false);
@@ -388,6 +404,36 @@ export default function SyncScreen() {
             <RefreshCw size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.syncNowText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
           </AnimatedPressable>
+
+          {/* NEARBY SYNC (BUMP TO SHARE) */}
+          <Text style={[styles.sectionHeader, { color: colors.textTertiary, marginTop: Spacing.md }]}>
+            NEARBY SYNC (BUMP TO SHARE)
+          </Text>
+          <ElevatedCard style={styles.nearbyCard}>
+            <View style={styles.nearbyRow}>
+              <View style={[styles.nearbyIconWrap, { backgroundColor: colors.accent + '20' }]}>
+                <Radio size={24} color={colors.accent} />
+              </View>
+              <View style={styles.nearbyInfo}>
+                <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>Bring Devices Together</Text>
+                <Text style={[styles.nearbySubtitle, { color: colors.textSecondary }]}>
+                  Hold two Taskora phones close together or bump them gently to synchronize tasks locally without any internet connection.
+                </Text>
+              </View>
+            </View>
+
+            <AnimatedPressable
+              profile="primaryButton"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setNearbyModalVisible(true);
+              }}
+              style={[styles.nearbyBtn, { backgroundColor: colors.accent }]}
+            >
+              <Radio size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.nearbyBtnText}>Start Nearby Sync</Text>
+            </AnimatedPressable>
+          </ElevatedCard>
 
           {/* PAIRED DEVICES LIST */}
           <View style={styles.sectionHeaderRow}>
@@ -974,6 +1020,14 @@ export default function SyncScreen() {
             </View>
           </View>
         </Modal>
+        {/* ---------------------------------------------------- */}
+        {/* NEARBY SYNC MODAL */}
+        {/* ---------------------------------------------------- */}
+        <NearbySyncModal
+          visible={nearbyModalVisible}
+          onClose={() => setNearbyModalVisible(false)}
+          onSyncComplete={loadData}
+        />
       </View>
     </PrimarySurface>
   );
@@ -982,6 +1036,49 @@ export default function SyncScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  nearbyCard: {
+    padding: Spacing.lg,
+    borderRadius: Radii.xl,
+    marginBottom: Spacing.lg,
+  },
+  nearbyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  nearbyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: Radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  nearbyInfo: {
+    flex: 1,
+  },
+  nearbyTitle: {
+    ...TypographyScale.headline,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  nearbySubtitle: {
+    ...TypographyScale.caption1,
+    lineHeight: 16,
+  },
+  nearbyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.pill,
+    width: '100%',
+  },
+  nearbyBtnText: {
+    ...TypographyScale.subhead,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   innerContainer: {
     flex: 1,

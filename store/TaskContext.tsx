@@ -7,12 +7,46 @@ import { RecurrenceEngine } from '../services/recurrence/recurrenceEngine';
 import { NotificationService } from '../services/notifications/notificationService';
 import { SmartSettings, DEFAULT_SMART_SETTINGS, CategoryEngine, ProductivityEngine } from '../smart';
 import { TemplateService } from '../services/storage/templateService';
+import { WidgetDataService } from '../services/widgets/WidgetDataService';
 import { haptics } from '../services/haptics';
+
+
+
+export type TaskActionType =
+  | 'CREATE'
+  | 'COMPLETE'
+  | 'UNCOMPLETE'
+  | 'DELETE'
+  | 'RESTORE'
+  | 'PIN'
+  | 'UNPIN'
+  | 'FAVOURITE'
+  | 'UNFAVOURITE'
+  | 'MOVE'
+  | 'ASSIGN_PROJECT'
+  | 'REMOVE_PROJECT'
+  | 'DUE_DATE_CHANGED'
+  | 'PRIORITY_CHANGED'
+  | 'TASK_UPDATED'
+  | 'SYNC'
+  | 'complete'
+  | 'delete'
+  | 'bulk_complete'
+  | 'bulk_delete'
+  | 'bulk_update';
 
 export interface UndoAction {
   id: string;
   message: string;
-  type: 'complete' | 'delete' | 'bulk_complete' | 'bulk_delete' | 'bulk_update';
+  type: TaskActionType;
+  actionType?: TaskActionType;
+  taskId?: string;
+  taskTitle?: string;
+  projectName?: string;
+  count?: number;
+  timestamp?: number;
+  undoAvailable?: boolean;
+  duration?: number;
   previousTasks: Task[];
 }
 
@@ -77,6 +111,14 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 // Normalizes a task to guarantee all optional array properties have safe defaults
 export function normalizeTask(t: Partial<Task>): Task {
+  const projectIds = Array.isArray(t.projectIds)
+    ? [...t.projectIds]
+    : (t.projectId ? [t.projectId] : []);
+
+  const inbox = typeof t.inbox === 'boolean'
+    ? t.inbox
+    : (projectIds.length === 0);
+
   return {
     id: t.id || `task-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
     userId: t.userId,
@@ -91,7 +133,9 @@ export function normalizeTask(t: Partial<Task>): Task {
     dueDate: t.dueDate,
     dueTime: t.dueTime,
     priority: t.priority || 'none',
-    projectId: t.projectId,
+    projectId: projectIds[0] || t.projectId,
+    projectIds,
+    inbox,
     tags: Array.isArray(t.tags) ? [...t.tags] : [],
     subtasks: Array.isArray(t.subtasks) ? [...t.subtasks] : [],
     reminder: t.reminder || 'none',
@@ -168,7 +212,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const normalized = newTasks.map(normalizeTask);
     setTasks(normalized);
     await Repository.saveTasks(normalized);
+    WidgetDataService.refreshSnapshot().catch(() => {});
   }, []);
+
 
   // Save projects helper
   const persistProjects = useCallback(async (newProjects: Project[]) => {
@@ -246,12 +292,26 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedTasks = [newTask, ...tasks];
     await persistTasks(updatedTasks);
     haptics.medium();
+
+    triggerUndoableAction({
+      id: `undo-${Date.now()}`,
+      message: `Created "${newTask.title}"`,
+      type: 'CREATE',
+      actionType: 'CREATE',
+      taskId: newTask.id,
+      taskTitle: newTask.title,
+      undoAvailable: true,
+      previousTasks: tasks,
+    });
+
     return newTask;
   };
 
   const updateTask = async (id: string, updates: Partial<Task>): Promise<void> => {
     const target = tasks.find((t) => t.id === id);
     if (!target) return;
+
+    const previousTasks = [...tasks];
 
     const updatedTasks = await Promise.all(
       tasks.map(async (t) => {
@@ -297,6 +357,45 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     await persistTasks(updatedTasks);
+
+    // Contextual notifications on specific updates
+    if (updates.projectId !== undefined && updates.projectId !== target.projectId) {
+      const proj = projects.find((p) => p.id === updates.projectId);
+      const projName = proj ? proj.name : 'Project';
+      triggerUndoableAction({
+        id: `undo-${Date.now()}`,
+        message: updates.projectId ? `Added "${target.title}" to ${projName}` : `Moved "${target.title}" to Inbox`,
+        type: updates.projectId ? 'ASSIGN_PROJECT' : 'MOVE',
+        actionType: updates.projectId ? 'ASSIGN_PROJECT' : 'MOVE',
+        taskId: target.id,
+        taskTitle: target.title,
+        projectName: projName,
+        undoAvailable: true,
+        previousTasks,
+      });
+    } else if (updates.priority !== undefined && updates.priority !== target.priority) {
+      triggerUndoableAction({
+        id: `undo-${Date.now()}`,
+        message: `Priority updated for "${target.title}"`,
+        type: 'PRIORITY_CHANGED',
+        actionType: 'PRIORITY_CHANGED',
+        taskId: target.id,
+        taskTitle: target.title,
+        undoAvailable: true,
+        previousTasks,
+      });
+    } else if (updates.dueDate !== undefined && updates.dueDate !== target.dueDate) {
+      triggerUndoableAction({
+        id: `undo-${Date.now()}`,
+        message: `Due date changed for "${target.title}"`,
+        type: 'DUE_DATE_CHANGED',
+        actionType: 'DUE_DATE_CHANGED',
+        taskId: target.id,
+        taskTitle: target.title,
+        undoAvailable: true,
+        previousTasks,
+      });
+    }
   };
 
   const toggleTaskCompletion = async (id: string): Promise<void> => {
@@ -352,8 +451,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
-      message: isNowCompleted ? 'Task completed' : 'Task reopened',
-      type: 'complete',
+      message: isNowCompleted ? `Completed "${target.title}"` : `Reopened "${target.title}"`,
+      type: isNowCompleted ? 'COMPLETE' : 'UNCOMPLETE',
+      actionType: isNowCompleted ? 'COMPLETE' : 'UNCOMPLETE',
+      taskId: target.id,
+      taskTitle: target.title,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -388,8 +491,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
-      message: isNowPinned ? `Pinned "${target.title.slice(0, 20)}..."` : `Unpinned "${target.title.slice(0, 20)}..."`,
-      type: 'bulk_update',
+      message: isNowPinned ? `Pinned "${target.title}"` : `Unpinned "${target.title}"`,
+      type: isNowPinned ? 'PIN' : 'UNPIN',
+      actionType: isNowPinned ? 'PIN' : 'UNPIN',
+      taskId: target.id,
+      taskTitle: target.title,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -424,8 +531,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
-      message: isNowFavorite ? `Added to Favorites` : `Removed from Favorites`,
-      type: 'bulk_update',
+      message: isNowFavorite ? `Added "${target.title}" to Favorites` : `Removed "${target.title}" from Favorites`,
+      type: isNowFavorite ? 'FAVOURITE' : 'UNFAVOURITE',
+      actionType: isNowFavorite ? 'FAVOURITE' : 'UNFAVOURITE',
+      taskId: target.id,
+      taskTitle: target.title,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -448,8 +559,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
-      message: `Deleted "${target.title.slice(0, 20)}..."`,
-      type: 'delete',
+      message: `Deleted "${target.title}"`,
+      type: 'DELETE',
+      actionType: 'DELETE',
+      taskId: target.id,
+      taskTitle: target.title,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -540,11 +655,40 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<void> => {
     const updatedProjects = projects.filter((p) => p.id !== id);
 
-    let updatedTasks = tasks;
+    let updatedTasks: Task[] = [];
     if (action === 'delete_tasks') {
-      updatedTasks = tasks.filter((t) => t.projectId !== id);
+      updatedTasks = tasks
+        .filter((t) => {
+          const currentProjects = t.projectIds || (t.projectId ? [t.projectId] : []);
+          const otherProjects = currentProjects.filter((pId) => pId !== id);
+          // If task only belonged to this project and wasn't in inbox, delete it
+          if (otherProjects.length === 0 && !t.inbox) {
+            return false;
+          }
+          return true;
+        })
+        .map((t) => {
+          const currentProjects = t.projectIds || (t.projectId ? [t.projectId] : []);
+          const otherProjects = currentProjects.filter((pId) => pId !== id);
+          return normalizeTask({
+            ...t,
+            projectIds: otherProjects,
+            projectId: otherProjects[0],
+          });
+        });
     } else {
-      updatedTasks = tasks.map((t) => (t.projectId === id ? { ...t, projectId: undefined } : t));
+      // move_to_inbox: remove project from projectIds, set inbox = true if no other projects
+      updatedTasks = tasks.map((t) => {
+        const currentProjects = t.projectIds || (t.projectId ? [t.projectId] : []);
+        const otherProjects = currentProjects.filter((pId) => pId !== id);
+        const shouldBeInbox = t.inbox || otherProjects.length === 0;
+        return normalizeTask({
+          ...t,
+          projectIds: otherProjects,
+          projectId: otherProjects[0],
+          inbox: shouldBeInbox,
+        });
+      });
     }
 
     haptics.heavy();
@@ -590,7 +734,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
       message: `Completed ${taskIds.length} tasks`,
-      type: 'bulk_complete',
+      type: 'COMPLETE',
+      actionType: 'COMPLETE',
+      count: taskIds.length,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -603,20 +750,35 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
       message: `Deleted ${taskIds.length} tasks`,
-      type: 'bulk_delete',
+      type: 'DELETE',
+      actionType: 'DELETE',
+      count: taskIds.length,
+      undoAvailable: true,
       previousTasks,
     });
   };
 
   const bulkMoveTasks = async (taskIds: string[], projectId: string | undefined): Promise<void> => {
     const previousTasks = [...tasks];
-    const updatedTasks = tasks.map((t) => (taskIds.includes(t.id) ? normalizeTask({ ...t, projectId }) : t));
+    const updatedTasks = tasks.map((t) =>
+      taskIds.includes(t.id)
+        ? normalizeTask({
+            ...t,
+            projectId,
+            projectIds: projectId ? [projectId] : [],
+            inbox: !projectId,
+          })
+        : t
+    );
     haptics.medium();
     await persistTasks(updatedTasks);
     triggerUndoableAction({
       id: `undo-${Date.now()}`,
       message: `Moved ${taskIds.length} tasks`,
-      type: 'bulk_update',
+      type: 'MOVE',
+      actionType: 'MOVE',
+      count: taskIds.length,
+      undoAvailable: true,
       previousTasks,
     });
   };
@@ -665,8 +827,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const todayTasks = tasks.filter((t) => !t.completed && t.dueDate === todayStr);
   // All tasks assigned to today (both completed & incomplete) for accurate progress tracking
   const todayAllTasks = tasks.filter((t) => t.dueDate === todayStr);
-  // All tasks in master list or tasks without project
-  const inboxTasks = tasks.filter((t) => !t.completed);
+  // Explicit Inbox Tasks: incomplete tasks marked with inbox === true
+  const inboxTasks = tasks.filter((t) => !t.completed && t.inbox === true);
   const upcomingTasks = tasks.filter((t) => !t.completed && t.dueDate && t.dueDate > todayStr);
   const overdueTasks = tasks.filter((t) => !t.completed && t.dueDate && t.dueDate < todayStr);
   const highPriorityTasks = tasks.filter(

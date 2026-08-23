@@ -77,6 +77,7 @@ export const useFocusTimer = () => {
     completedSessionsToday: store.completedSessionsToday,
     settings: store.settings,
     streakStats: store.streakStats,
+    activeSession: store.activeSession,
     setSelectedTaskId: store.setSelectedTaskId,
     startTimer: store.startTimer,
     pauseTimer: store.pauseTimer,
@@ -86,6 +87,7 @@ export const useFocusTimer = () => {
     recordCompletedTaskStreak: store.recordCompletedTaskStreak,
   };
 };
+
 
 export const useStatistics = () => {
   const store = useTaskStore();

@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { FocusSession, FocusModeType, PomodoroSettings, StreakStats } from '../models/focus';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { FocusModeType, PomodoroSettings, StreakStats, ActiveFocusSession } from '../models/focus';
 import { Repository, getTodayDateString } from '../services/storage/repository';
-import { NotificationService } from '../services/notifications/notificationService';
-import { haptics } from '../services/haptics';
+import { FocusTimerEngine } from '../services/focus/FocusTimerEngine';
 
 interface FocusContextType {
   mode: FocusModeType;
@@ -12,10 +11,11 @@ interface FocusContextType {
   completedSessionsToday: number;
   settings: PomodoroSettings;
   streakStats: StreakStats;
+  activeSession: ActiveFocusSession | null;
   
   setSelectedTaskId: (taskId: string | null) => void;
-  startTimer: () => void;
-  pauseTimer: () => void;
+  startTimer: (taskTitle?: string) => void;
+  pauseTimer: (taskTitle?: string) => void;
   resetTimer: () => void;
   skipSession: () => void;
   updateSettings: (newSettings: Partial<PomodoroSettings>) => Promise<void>;
@@ -25,20 +25,15 @@ interface FocusContextType {
 const FocusContext = createContext<FocusContextType | undefined>(undefined);
 
 export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<PomodoroSettings>({
-    focusDuration: 25,
-    shortBreakDuration: 5,
-    longBreakDuration: 15,
-    longBreakInterval: 4,
-    autoStartBreaks: false,
-    autoStartFocus: false,
-  });
+  const engine = FocusTimerEngine.getInstance();
 
-  const [mode, setMode] = useState<FocusModeType>('work');
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(25 * 60);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [completedSessionsToday, setCompletedSessionsToday] = useState<number>(0);
+  const [settings, setSettings] = useState<PomodoroSettings>(engine.getSettings());
+  const [mode, setMode] = useState<FocusModeType>(engine.getMode());
+  const [isActive, setIsActive] = useState<boolean>(engine.getIsActive());
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(engine.getRemainingSeconds());
+  const [selectedTaskId, setSelectedTaskIdState] = useState<string | null>(engine.getSelectedTaskId());
+  const [completedSessionsToday, setCompletedSessionsToday] = useState<number>(engine.getCompletedSessionsToday());
+  const [activeSession, setActiveSession] = useState<ActiveFocusSession | null>(engine.getSession());
   const [streakStats, setStreakStats] = useState<StreakStats>({
     currentStreak: 0,
     bestStreak: 0,
@@ -46,138 +41,72 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     history: {},
   });
 
-  const intervalRef = useRef<any>(null);
-
-  // Load saved settings & streak on mount
+  // Load saved streak on mount & init engine
   useEffect(() => {
     async function loadInitial() {
-      const [savedSettings, savedStats, savedSessions] = await Promise.all([
-        Repository.loadPomodoroSettings(),
-        Repository.loadStreakStats(),
-        Repository.loadFocusSessions(),
-      ]);
-      setSettings(savedSettings);
-      setStreakStats(savedStats);
-      setSecondsRemaining(savedSettings.focusDuration * 60);
+      const stats = await Repository.loadStreakStats();
+      setStreakStats(stats);
+      await engine.init();
 
-      const todayStr = getTodayDateString();
-      const todaySessions = savedSessions.filter((s) => s.completedAt.startsWith(todayStr));
-      setCompletedSessionsToday(todaySessions.length);
+      // Sync state from engine after init
+      setSettings(engine.getSettings());
+      setMode(engine.getMode());
+      setIsActive(engine.getIsActive());
+      setSecondsRemaining(engine.getRemainingSeconds());
+      setSelectedTaskIdState(engine.getSelectedTaskId());
+      setCompletedSessionsToday(engine.getCompletedSessionsToday());
+      setActiveSession(engine.getSession());
     }
     loadInitial();
-  }, []);
 
-  // Timer Tick interval
-  useEffect(() => {
-    if (isActive) {
-      intervalRef.current = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            handleTimerCompletion();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
+    // Subscribe to engine state updates
+    const unsubscribe = engine.subscribe((event) => {
+      setMode(event.mode);
+      setIsActive(event.isActive);
+      setSecondsRemaining(event.secondsRemaining);
+      setSelectedTaskIdState(event.selectedTaskId);
+      setCompletedSessionsToday(event.completedSessionsToday);
+      setActiveSession(event.session);
+      setSettings(engine.getSettings());
+
+      if (event.type === 'completed') {
+        Repository.loadStreakStats().then(setStreakStats);
+      }
+    });
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      unsubscribe();
     };
-  }, [isActive, mode, settings]);
+  }, []);
 
-  const handleTimerCompletion = async () => {
-    setIsActive(false);
-    haptics.success();
+  const setSelectedTaskId = useCallback((taskId: string | null) => {
+    setSelectedTaskIdState(taskId);
+    engine.setSelectedTaskId(taskId);
+  }, []);
 
-    if (mode === 'work') {
-      const newSessionCount = completedSessionsToday + 1;
-      setCompletedSessionsToday(newSessionCount);
+  const startTimer = useCallback((taskTitle?: string) => {
+    engine.startTimer(taskTitle);
+  }, []);
 
-      // Trigger cross-platform completion notification
-      await NotificationService.sendFocusCompletionNotification(
-        'Focus Session Completed! 🎉',
-        `You finished your ${settings.focusDuration} min focus session. Take a break!`
-      );
+  const pauseTimer = useCallback((taskTitle?: string) => {
+    engine.pauseTimer(taskTitle);
+  }, []);
 
-      // Save session log
-      const newSession: FocusSession = {
-        id: `sess-${Date.now()}`,
-        taskId: selectedTaskId || undefined,
-        durationMinutes: settings.focusDuration,
-        completedAt: new Date().toISOString(),
-        mode: 'work',
-      };
-      const existingSessions = await Repository.loadFocusSessions();
-      await Repository.saveFocusSessions([newSession, ...existingSessions]);
+  const resetTimer = useCallback(() => {
+    engine.resetTimer();
+  }, []);
 
-      // Determine next mode (short vs long break)
-      if (newSessionCount % settings.longBreakInterval === 0) {
-        setMode('longBreak');
-        setSecondsRemaining(settings.longBreakDuration * 60);
-      } else {
-        setMode('shortBreak');
-        setSecondsRemaining(settings.shortBreakDuration * 60);
-      }
-    } else {
-      // Break finished, return to work
-      await NotificationService.sendFocusCompletionNotification(
-        'Break Ended ⚡',
-        'Ready to start your next focus session?'
-      );
-      setMode('work');
-      setSecondsRemaining(settings.focusDuration * 60);
-    }
-  };
+  const skipSession = useCallback(() => {
+    engine.skipSession();
+  }, []);
 
-  const startTimer = () => {
-    haptics.medium();
-    setIsActive(true);
-  };
+  const updateSettings = useCallback(async (newSettings: Partial<PomodoroSettings>) => {
+    await engine.updateSettings(newSettings);
+    setSettings(engine.getSettings());
+    setSecondsRemaining(engine.getRemainingSeconds());
+  }, []);
 
-  const pauseTimer = () => {
-    haptics.light();
-    setIsActive(false);
-  };
-
-  const resetTimer = () => {
-    haptics.light();
-    setIsActive(false);
-    if (mode === 'work') {
-      setSecondsRemaining(settings.focusDuration * 60);
-    } else if (mode === 'shortBreak') {
-      setSecondsRemaining(settings.shortBreakDuration * 60);
-    } else {
-      setSecondsRemaining(settings.longBreakDuration * 60);
-    }
-  };
-
-  const skipSession = () => {
-    haptics.medium();
-    setIsActive(false);
-    if (mode === 'work') {
-      setMode('shortBreak');
-      setSecondsRemaining(settings.shortBreakDuration * 60);
-    } else {
-      setMode('work');
-      setSecondsRemaining(settings.focusDuration * 60);
-    }
-  };
-
-  const updateSettings = async (newSettings: Partial<PomodoroSettings>) => {
-    const updated = { ...settings, ...newSettings };
-    setSettings(updated);
-    await Repository.savePomodoroSettings(updated);
-    if (!isActive) {
-      if (mode === 'work') setSecondsRemaining(updated.focusDuration * 60);
-      else if (mode === 'shortBreak') setSecondsRemaining(updated.shortBreakDuration * 60);
-      else setSecondsRemaining(updated.longBreakDuration * 60);
-    }
-  };
-
-  const recordCompletedTaskStreak = async () => {
+  const recordCompletedTaskStreak = useCallback(async () => {
     const todayStr = getTodayDateString();
     const updatedHistory = { ...streakStats.history, [todayStr]: (streakStats.history[todayStr] || 0) + 1 };
     
@@ -195,7 +124,7 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setStreakStats(updatedStats);
     await Repository.saveStreakStats(updatedStats);
-  };
+  }, [streakStats]);
 
   return (
     <FocusContext.Provider
@@ -207,6 +136,7 @@ export const FocusProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         completedSessionsToday,
         settings,
         streakStats,
+        activeSession,
         setSelectedTaskId,
         startTimer,
         pauseTimer,
@@ -228,3 +158,4 @@ export const useFocusStore = (): FocusContextType => {
   }
   return context;
 };
+

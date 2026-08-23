@@ -22,11 +22,22 @@ import { Spacing, TypographyScale, Radii, Shadows } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
 import { getTodayDateString } from '../services/storage/repository';
 import { safeGoBack } from '../utils/navigation';
+import { WindowsDesktopShell } from '../components/desktop/WindowsDesktopShell';
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialView="favorites" />;
+  }
+
   const {
     favoriteTasks,
     projects,

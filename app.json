@@ -12,7 +12,10 @@
       "bundleIdentifier": "com.taskora.app",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Taskora uses speech recognition to create tasks from voice.",
-        "NSMicrophoneUsageDescription": "Taskora uses your microphone to transcribe voice tasks."
+        "NSMicrophoneUsageDescription": "Taskora uses your microphone to transcribe voice tasks.",
+        "NSBluetoothAlwaysUsageDescription": "Taskora uses Bluetooth to discover and sync tasks with nearby devices.",
+        "NSBluetoothPeripheralUsageDescription": "Taskora uses Bluetooth to sync tasks with nearby devices.",
+        "NSMotionUsageDescription": "Taskora uses motion sensors to detect the bring-together sync gesture."
       }
     },
     "android": {
@@ -28,7 +31,14 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_ADVERTISE",
+        "ACCESS_FINE_LOCATION",
+        "REQUEST_INSTALL_PACKAGES"
       ],
       "predictiveBackGestureEnabled": false
     },

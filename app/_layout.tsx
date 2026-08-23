@@ -9,7 +9,8 @@ import { TaskProvider, useTaskStore } from '../store/TaskContext';
 import { FocusProvider } from '../store/FocusContext';
 import { Snackbar } from '../components/common/Snackbar';
 import { MigrationRunner } from '../data/migrations/MigrationRunner';
-import { NotificationService } from '../services/notifications/notificationService';
+import { NotificationService, NotificationActions } from '../services/notifications/notificationService';
+import { WidgetDataService } from '../services/widgets/WidgetDataService';
 import { ErrorBoundary } from '../diagnostics/ErrorBoundary';
 
 function RootStack() {
@@ -19,7 +20,9 @@ function RootStack() {
 
   useEffect(() => {
     MigrationRunner.runMigrations();
-  }, []);
+    NotificationActions.init(router);
+    WidgetDataService.init();
+  }, [router]);
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -90,6 +93,7 @@ function RootStack() {
         <Stack.Screen name="search" options={{ presentation: 'card' }} />
         <Stack.Screen name="statistics" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="settings/widgets" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings/backup" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings/privacy-diagnostics" options={{ presentation: 'card' }} />
         <Stack.Screen name="sync/index" options={{ presentation: 'card' }} />
@@ -101,6 +105,7 @@ function RootStack() {
     </>
   );
 }
+
 
 export default function RootLayout() {
   return (

@@ -51,4 +51,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     writeText: (text) => ipcRenderer.invoke('clipboard:writeText', text),
     readText: () => ipcRenderer.invoke('clipboard:readText'),
   },
+
+  // Native System Theme (Secure IPC)
+  theme: {
+    getSystemTheme: () => ipcRenderer.invoke('theme:getSystemTheme'),
+    onSystemThemeChange: (callback) => {
+      const listener = (event, theme) => callback(theme);
+      ipcRenderer.on('theme:changed', listener);
+      return () => ipcRenderer.removeListener('theme:changed', listener);
+    },
+  },
 });

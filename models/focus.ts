@@ -1,4 +1,19 @@
 export type FocusModeType = 'work' | 'shortBreak' | 'longBreak';
+export type FocusSessionStatus = 'idle' | 'running' | 'paused' | 'completed';
+
+export interface ActiveFocusSession {
+  id: string;
+  status: FocusSessionStatus;
+  mode: FocusModeType;
+  durationMs: number;
+  startedAt: number | null; // Epoch timestamp ms
+  pausedAt: number | null;  // Epoch timestamp ms
+  accumulatedMs: number;
+  endsAt: number | null;     // Epoch timestamp ms
+  completedAt?: string | null;
+  taskId?: string | null;
+  updatedAt: number;
+}
 
 export interface FocusSession {
   id: string;
@@ -23,3 +38,4 @@ export interface StreakStats {
   lastCompletedDate?: string;
   history: Record<string, number>; // YYYY-MM-DD -> completed count
 }
+

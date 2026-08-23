@@ -37,18 +37,31 @@ import { TaskCheckbox } from '../../components/tasks/TaskCheckbox';
 import { useTaskora, useTheme } from '../../store/useTaskora';
 import { PriorityLevel, ReminderOption, RecurrenceFrequency, Task } from '../../models/task';
 import { Radii, Spacing, TypographyScale, Shadows } from '../../theme/tokens';
-import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
 import { safeGoBack } from '../../utils/navigation';
-import { haptics } from '../../services/haptics';
-import { getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
+import { WindowsDesktopShell } from '../../components/desktop/WindowsDesktopShell';
 import { formatShortTime, formatTaskTime, formatClockTime } from '../../utils/timeFormatter';
+import { getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
 import { calculateTaskProgress } from '../../utils/progress';
+import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
+import { haptics } from '../../services/haptics';
+
+import { TaskDestinationSelector } from '../../components/tasks/TaskDestinationSelector';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors, isDark, timeFormat } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialTaskId={id} />;
+  }
+
   const {
     tasks,
     projects,
@@ -70,7 +83,14 @@ export default function TaskDetailScreen() {
   const [dueDate, setDueDate] = useState<string | undefined>(task?.dueDate);
   const [dueTime, setDueTime] = useState<string | undefined>(task?.dueTime);
   const [priority, setPriority] = useState<PriorityLevel>(task?.priority || 'none');
-  const [projectId, setProjectId] = useState<string | undefined>(task?.projectId);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
+    Array.isArray(task?.projectIds) ? task!.projectIds : (task?.projectId ? [task.projectId] : [])
+  );
+  const [inboxSelected, setInboxSelected] = useState<boolean>(
+    typeof task?.inbox === 'boolean'
+      ? task.inbox
+      : (!task?.projectId && (!task?.projectIds || task.projectIds.length === 0))
+  );
   const [reminder, setReminder] = useState<ReminderOption>(task?.reminder || 'none');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -91,7 +111,11 @@ export default function TaskDetailScreen() {
       setDueDate(task.dueDate);
       setDueTime(task.dueTime);
       setPriority(task.priority || 'none');
-      setProjectId(task.projectId);
+      const pIds = Array.isArray(task.projectIds) ? task.projectIds : (task.projectId ? [task.projectId] : []);
+      setSelectedProjectIds(pIds);
+      setInboxSelected(
+        typeof task.inbox === 'boolean' ? task.inbox : (!task.projectId && pIds.length === 0)
+      );
       setReminder(task.reminder || 'none');
     }
   }, [task?.id, task?.updatedAt]);
@@ -131,7 +155,9 @@ export default function TaskDetailScreen() {
       dueDate,
       dueTime,
       priority,
-      projectId,
+      projectId: selectedProjectIds[0],
+      projectIds: selectedProjectIds,
+      inbox: inboxSelected,
       reminder,
     });
 
@@ -528,53 +554,22 @@ export default function TaskDetailScreen() {
           </View>
         </ElevatedCard>
 
-        {/* Project Selector */}
+        {/* Destination Selector: Inbox & Projects */}
         <ElevatedCard style={styles.cardSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Project</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-            <AnimatedPressable
-              profile="smallControl"
-              onPress={() => {
-                haptics.selection();
-                setProjectId(undefined);
-              }}
-              style={[
-                styles.selectorChip,
-                { backgroundColor: !projectId ? colors.accent : colors.secondaryBackground },
-              ]}
-            >
-              <Text style={[styles.chipText, { color: !projectId ? '#FFFFFF' : colors.textSecondary }]}>
-                Inbox
-              </Text>
-            </AnimatedPressable>
-
-            {projects.map((proj) => (
-              <AnimatedPressable
-                key={proj.id}
-                profile="smallControl"
-                onPress={() => {
-                  haptics.selection();
-                  setProjectId(proj.id);
-                }}
-                style={[
-                  styles.selectorChip,
-                  {
-                    backgroundColor: projectId === proj.id ? proj.color : colors.secondaryBackground,
-                    marginLeft: Spacing.xs,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    { color: projectId === proj.id ? '#FFFFFF' : colors.textSecondary },
-                  ]}
-                >
-                  {proj.name}
-                </Text>
-              </AnimatedPressable>
-            ))}
-          </ScrollView>
+          <TaskDestinationSelector
+            selectedProjectIds={selectedProjectIds}
+            inbox={inboxSelected}
+            projects={projects}
+            onToggleInbox={(val) => setInboxSelected(val)}
+            onSelectProject={(pId) => {
+              if (!selectedProjectIds.includes(pId)) {
+                setSelectedProjectIds([...selectedProjectIds, pId]);
+              }
+            }}
+            onRemoveProject={(pId) => {
+              setSelectedProjectIds(selectedProjectIds.filter((id) => id !== pId));
+            }}
+          />
         </ElevatedCard>
 
         {/* Subtasks Section */}

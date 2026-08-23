@@ -37,10 +37,12 @@ import Animated, {
   withRepeat,
   withSequence,
   FadeInDown,
+  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTaskora, useTheme } from '../../store/useTaskora';
 import { safeHaptics } from '../../utils/haptics';
+import { safeGoBack } from '../../utils/navigation';
 import { formatTaskTime } from '../../utils/timeFormatter';
 import {
   NaturalLanguageParser,
@@ -58,9 +60,12 @@ import { MaterialLayers } from '../../theme/materials';
 import { SpringConfigs } from '../../theme/animations';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 
+
+import { TaskDestinationSelector } from '../../components/tasks/TaskDestinationSelector';
+
 export default function QuickAddModal() {
   const router = useRouter();
-  const { initialProjectId } = useLocalSearchParams<{ initialProjectId?: string }>();
+  const { initialProjectId, initialInbox } = useLocalSearchParams<{ initialProjectId?: string; initialInbox?: string }>();
   const { colors, isDark, timeFormat } = useTheme();
   const insets = useSafeAreaInsets();
   const { addTask, projects, smartSettings } = useTaskora();
@@ -73,7 +78,12 @@ export default function QuickAddModal() {
   const [priority, setPriority] = useState<PriorityLevel>('none');
   const [category, setCategory] = useState<string>('General');
   const [estimatedDuration, setEstimatedDuration] = useState<number>(30);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjectId);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
+    initialProjectId ? [initialProjectId] : []
+  );
+  const [inboxSelected, setInboxSelected] = useState<boolean>(
+    initialInbox === 'true' || (!initialProjectId && (!initialProjectId || initialProjectId === ''))
+  );
   const [selectedTags] = useState<string[]>([]);
   const [reminder, setReminder] = useState<ReminderOption>('none');
   const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('never');
@@ -85,6 +95,8 @@ export default function QuickAddModal() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceSpokenText, setVoiceSpokenText] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reanimated Sheet Entrance Physics
   const sheetTranslateY = useSharedValue(400);
@@ -110,6 +122,14 @@ export default function QuickAddModal() {
     }
   }, [isListening]);
 
+  const safeClose = () => {
+    try {
+      safeGoBack(router);
+    } catch {
+      router.back();
+    }
+  };
+
   const handleClose = () => {
     if (isListening) {
       VoiceService.stopListening();
@@ -117,11 +137,13 @@ export default function QuickAddModal() {
     }
     backdropOpacity.value = withTiming(0, { duration: 180 });
     sheetTranslateY.value = withTiming(400, { duration: 220 }, (finished) => {
+      'worklet';
       if (finished) {
-        router.back();
+        runOnJS(safeClose)();
       }
     });
   };
+
 
   // Live NLP Parsing effect
   useEffect(() => {
@@ -240,33 +262,45 @@ export default function QuickAddModal() {
   };
 
   const handleSave = async () => {
+    if (isSubmitting) return;
+
     const title = (parsedTask && smartSettings.smartParsingEnabled ? parsedTask.title : rawText.trim()) || rawText.trim();
     if (!title) return;
 
+    setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // If user changed category from default, learn preference
-    if (parsedTask && parsedTask.category && category !== parsedTask.category) {
-      CategoryEngine.learnCorrection(title, category);
+    try {
+      // If user changed category from default, learn preference
+      if (parsedTask && parsedTask.category && category !== parsedTask.category) {
+        CategoryEngine.learnCorrection(title, category);
+      }
+
+      await addTask({
+        title,
+        notes,
+        dueDate,
+        dueTime,
+        priority,
+        category,
+        estimatedDuration,
+        projectId: selectedProjectIds[0],
+        projectIds: selectedProjectIds,
+        inbox: inboxSelected,
+        tags: selectedTags,
+        reminder,
+        recurrence: recurrence !== 'never' ? { frequency: recurrence } : undefined,
+        subtasks,
+      });
+
+      handleClose();
+    } catch (err) {
+      console.error('[QuickAddModal] Error saving task:', err);
+      setIsSubmitting(false);
+      Alert.alert('Task Creation Error', 'Could not save task. Please try again.');
     }
-
-    await addTask({
-      title,
-      notes,
-      dueDate,
-      dueTime,
-      priority,
-      category,
-      estimatedDuration,
-      projectId: selectedProjectId,
-      tags: selectedTags,
-      reminder,
-      recurrence: recurrence !== 'never' ? { frequency: recurrence } : undefined,
-      subtasks,
-    });
-
-    handleClose();
   };
+
 
   const handleAddSubtask = () => {
     if (!subtaskInput.trim()) return;
@@ -579,58 +613,22 @@ export default function QuickAddModal() {
             })}
           </View>
 
-          {/* Project Selector */}
-          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Project</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
-            style={styles.horizontalScrollView}
-          >
-            <AnimatedPressable
-              profile="smallControl"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedProjectId(undefined);
-              }}
-              style={[
-                styles.projectChip,
-                {
-                  backgroundColor: !selectedProjectId ? colors.accent : colors.secondaryBackground,
-                },
-              ]}
-            >
-              <Folder size={14} color={!selectedProjectId ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 5 }} />
-              <Text style={[styles.chipText, { color: !selectedProjectId ? '#FFFFFF' : colors.textSecondary }]}>
-                Inbox
-              </Text>
-            </AnimatedPressable>
-
-            {projects.map((proj) => {
-              const isSelected = selectedProjectId === proj.id;
-              return (
-                <AnimatedPressable
-                  key={proj.id}
-                  profile="smallControl"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedProjectId(proj.id);
-                  }}
-                  style={[
-                    styles.projectChip,
-                    {
-                      backgroundColor: isSelected ? proj.color : colors.secondaryBackground,
-                    },
-                  ]}
-                >
-                  <View style={[styles.projectDot, { backgroundColor: isSelected ? '#FFFFFF' : proj.color }]} />
-                  <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
-                    {proj.name}
-                  </Text>
-                </AnimatedPressable>
-              );
-            })}
-          </ScrollView>
+          {/* Task Destination: Inbox & Projects */}
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Destinations</Text>
+          <TaskDestinationSelector
+            selectedProjectIds={selectedProjectIds}
+            inbox={inboxSelected}
+            projects={projects}
+            onToggleInbox={(val) => setInboxSelected(val)}
+            onSelectProject={(pId) => {
+              if (!selectedProjectIds.includes(pId)) {
+                setSelectedProjectIds([...selectedProjectIds, pId]);
+              }
+            }}
+            onRemoveProject={(pId) => {
+              setSelectedProjectIds(selectedProjectIds.filter((id) => id !== pId));
+            }}
+          />
 
           {/* Toggle Advanced */}
           <AnimatedPressable
@@ -694,15 +692,16 @@ export default function QuickAddModal() {
           <AnimatedPressable
             profile="primaryButton"
             onPress={handleSave}
-            disabled={!isFormValid}
+            disabled={!isFormValid || isSubmitting}
             style={[
               styles.saveButton,
-              { backgroundColor: colors.accent, opacity: isFormValid ? 1 : 0.4 },
+              { backgroundColor: colors.accent, opacity: isFormValid && !isSubmitting ? 1 : 0.4 },
             ]}
           >
-            <Text style={styles.saveText}>Create Task</Text>
+            <Text style={styles.saveText}>{isSubmitting ? 'Creating...' : 'Create Task'}</Text>
           </AnimatedPressable>
         </View>
+
       </Animated.View>
 
       {/* Voice Listening Modal */}

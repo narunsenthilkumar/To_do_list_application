@@ -27,6 +27,7 @@ import { MAX_CONTENT_WIDTH } from '../../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../../theme/tokens';
 import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
 import { calculateTasksProgress } from '../../utils/progress';
+import { HomeUpdateCard } from '../../components/updates/HomeUpdateCard';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -155,6 +156,9 @@ export default function TodayScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           >
+            {/* Android In-App Update Card */}
+            <HomeUpdateCard />
+
             {/* Smart Daily Briefing Cards */}
             {suggestions.map((suggestion) => (
               <ElevatedCard key={suggestion.id} style={styles.suggestionCard}>

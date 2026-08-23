@@ -12,13 +12,24 @@ import { useSearch, useTheme, useTasks } from '../store/useTaskora';
 import { PriorityLevel, Task } from '../models/task';
 import { Radii, Spacing, TypographyScale, Shadows } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
-import { getTodayDateString } from '../services/storage/repository';
 import { safeGoBack } from '../utils/navigation';
+import { WindowsDesktopShell } from '../components/desktop/WindowsDesktopShell';
+import { getTodayDateString } from '../services/storage/repository';
 
 export default function SearchScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialView="search" />;
+  }
+
   const [isFocused, setIsFocused] = useState(false);
   const {
     toggleTaskCompletion,

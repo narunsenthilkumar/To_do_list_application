@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, Notification, shell, session, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, Notification, shell, session, clipboard, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -480,6 +480,24 @@ ipcMain.handle('notification:show', async (event, { title, body }) => {
   } catch {
     return false;
   }
+});
+
+// Windows Native Theme Synchronization (Secure IPC)
+ipcMain.handle('theme:getSystemTheme', () => {
+  try {
+    return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+});
+
+nativeTheme.on('updated', () => {
+  try {
+    const activeTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+      mainWindow.webContents.send('theme:changed', activeTheme);
+    }
+  } catch {}
 });
 
 // Window Controls

@@ -351,7 +351,7 @@ export default function FocusScreen() {
               </AnimatedPressable>
 
               <AnimatedPressable
-                onPress={isActive ? pauseTimer : startTimer}
+                onPress={() => (isActive ? pauseTimer(selectedTask?.title) : startTimer(selectedTask?.title))}
                 profile="floatingButton"
                 style={[
                   styles.playBtn,
@@ -365,6 +365,7 @@ export default function FocusScreen() {
                   <Play size={32} color="#FFFFFF" style={{ marginLeft: 4 }} />
                 )}
               </AnimatedPressable>
+
 
               <AnimatedPressable
                 onPress={skipSession}

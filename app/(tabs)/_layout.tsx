@@ -9,11 +9,23 @@ import { Radii, Shadows, Spacing } from '../../theme/tokens';
 import { FloatingTabBar } from '../../components/navigation/FloatingTabBar';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 import { TAB_BAR_HEIGHT, TAB_BAR_BOTTOM_OFFSET } from '../../theme/materials';
+import { useResponsive } from '../../theme/responsive';
+import { WindowsDesktopShell } from '../../components/desktop/WindowsDesktopShell';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDesktopOrLaptop } = useResponsive();
+
+  const isDesktopEnvironment =
+    Platform.OS === 'web' &&
+    (isDesktopOrLaptop || (typeof window !== 'undefined' && Boolean((window as any).electronAPI?.isElectron)));
+
+  // If in desktop / Electron environment, render the Windows Desktop presentation shell
+  if (isDesktopEnvironment) {
+    return <WindowsDesktopShell />;
+  }
 
   const bottomInset = Math.max(insets.bottom, 12);
   const fabBottom = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_OFFSET + (Platform.OS === 'ios' ? bottomInset / 2 : 0) + 16;
@@ -31,7 +43,6 @@ export default function TabsLayout() {
           headerShown: false,
         }}
       >
-
         <Tabs.Screen name="index" options={{ title: 'Today' }} />
         <Tabs.Screen name="inbox" options={{ title: 'Inbox' }} />
         <Tabs.Screen name="projects" options={{ title: 'Projects' }} />
@@ -39,7 +50,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="focus" options={{ title: 'Focus' }} />
         <Tabs.Screen name="two" options={{ href: null }} />
       </Tabs>
-
 
       {/* Prominent Floating Action Button (+) */}
       <AnimatedPressable

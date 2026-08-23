@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, Download, Upload, Trash2, Info, BarChart2, Sparkles, Mic, Calendar, RotateCcw, ShieldCheck, Tag, Clock, Lightbulb, RefreshCw, Camera, User } from 'lucide-react-native';
+import { ArrowLeft, Bell, Download, Upload, Trash2, Info, BarChart2, Sparkles, Mic, Calendar, RotateCcw, ShieldCheck, Tag, Clock, Lightbulb, RefreshCw, Camera, User, LayoutGrid, Check, Volume2, AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../components/common/PrimarySurface';
@@ -16,18 +16,34 @@ import { ImportDataSheet } from '../components/settings/ImportDataSheet';
 import { BrandLogo } from '../components/common/BrandLogo';
 import { useTheme } from '../store/ThemeContext';
 import { useTaskora } from '../store/useTaskora';
-import { Repository } from '../services/storage/repository';
-import { NotificationService } from '../services/notifications/notificationService';
+import { Repository, IncompleteTaskIndicationType } from '../services/storage/repository';
+import { NotificationService, NotificationCapability } from '../services/notifications/notificationService';
 import { VoiceService, MicrophonePermissionStatus } from '../services/voice';
 import { MAX_CONTENT_WIDTH } from '../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
 import { safeGoBack } from '../utils/navigation';
+import { haptics } from '../services/haptics';
+import { updateService } from '../services/updates/UpdateService';
+import { UpdateState } from '../services/updates/UpdateTypes';
+import Constants from 'expo-constants';
+
+import { WindowsDesktopShell } from '../components/desktop/WindowsDesktopShell';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { mode, setThemeMode, timeFormat, setTimeFormat, colors } = useTheme();
+  const { mode, setThemeMode, timeFormat, setTimeFormat, colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const isDesktop =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    (window.innerWidth >= 900 || Boolean((window as any).electronAPI?.isElectron));
+
+  if (isDesktop) {
+    return <WindowsDesktopShell initialView="settings" />;
+  }
+
   const {
     completedTasks,
     bulkDeleteTasks,
@@ -38,12 +54,59 @@ export default function SettingsScreen() {
   } = useTaskora();
 
   const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [incompleteIndication, setIncompleteIndication] = useState<IncompleteTaskIndicationType>('both');
+  const [notifPermState, setNotifPermState] = useState<'granted' | 'denied' | 'undetermined' | 'blocked'>('undetermined');
   const [importSheetVisible, setImportSheetVisible] = useState(false);
   const [micPermStatus, setMicPermStatus] = useState<MicrophonePermissionStatus>('undetermined');
+  const [updateState, setUpdateState] = useState<UpdateState>(updateService.getState());
 
-  React.useEffect(() => {
+  useEffect(() => {
     VoiceService.checkPermission().then(setMicPermStatus);
+    Repository.loadIncompleteTaskIndication().then(setIncompleteIndication);
+    NotificationCapability.checkPermission().then(setNotifPermState);
+
+    const unsub = updateService.subscribe(setUpdateState);
+    return () => unsub();
   }, []);
+
+  const handleSelectIncompleteIndication = async (mode: IncompleteTaskIndicationType) => {
+    haptics.selection();
+    setIncompleteIndication(mode);
+    await Repository.saveIncompleteTaskIndication(mode);
+
+    if (mode === 'alarm' || mode === 'both') {
+      const perm = await NotificationCapability.checkPermission();
+      if (perm !== 'granted') {
+        Alert.alert(
+          'Alarm Reminders',
+          'Exact alarms allow Taskora to alert you at the scheduled time with high-urgency notifications.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Enable',
+              onPress: async () => {
+                const granted = await NotificationCapability.requestPermission();
+                if (granted) {
+                  setNotifPermState('granted');
+                }
+              },
+            },
+          ]
+        );
+      }
+    }
+  };
+
+  const handleRequestNotifPermission = async () => {
+    haptics.light();
+    if (notifPermState === 'blocked') {
+      await NotificationCapability.openSystemSettings();
+    } else {
+      const granted = await NotificationCapability.requestPermission();
+      setNotifPermState(granted ? 'granted' : 'denied');
+    }
+  };
+
 
   const handleRequestMicPermission = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -310,12 +373,25 @@ export default function SettingsScreen() {
               />
             </ElevatedCard>
 
+            {/* Widgets & Live Status */}
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>HOME SCREEN & WIDGETS</Text>
+            <ElevatedCard style={styles.cardSection}>
+              <SettingsRow
+                icon={<LayoutGrid size={20} color={colors.accent} />}
+                title="Home Screen Widgets & Studio"
+                subtitle="Interactive Small, Medium & Large live widgets"
+                showChevron
+                onPress={() => router.push('/settings/widgets' as any)}
+              />
+            </ElevatedCard>
+
             {/* Notifications Section */}
-            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>NOTIFICATIONS</Text>
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>NOTIFICATIONS & ALERTS</Text>
             <ElevatedCard style={styles.cardSection}>
               <SettingsRow
                 icon={<Bell size={20} color={colors.accent} />}
                 title="Task Reminders"
+                subtitle="Enable scheduled notifications for task deadlines"
                 trailing={
                   <AnimatedToggle
                     value={remindersEnabled}
@@ -326,7 +402,99 @@ export default function SettingsScreen() {
                   />
                 }
               />
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              {/* Incomplete Tasks Indication Mode Selector */}
+              <View style={styles.incompleteSection}>
+                <View style={styles.incompleteHeaderRow}>
+                  <Volume2 size={18} color={colors.accent} style={{ marginRight: 8 }} />
+                  <View>
+                    <Text style={[styles.incompleteTitle, { color: colors.textPrimary }]}>
+                      Incomplete Task Indication
+                    </Text>
+                    <Text style={[styles.incompleteSubtitle, { color: colors.textTertiary }]}>
+                      How should Taskora remind you?
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.indicationOptionsList}>
+                  {[
+                    { id: 'off', label: 'Off', desc: 'No reminders' },
+                    { id: 'notification', label: 'Notification', desc: 'Standard banner notification' },
+                    { id: 'alarm', label: 'Alarm', desc: 'High-urgency alarm sound & vibration' },
+                    { id: 'both', label: 'Notification + Alarm', desc: 'Banner and alarm sound combined' },
+                  ].map((opt) => {
+                    const isSelected = incompleteIndication === opt.id;
+                    return (
+                      <AnimatedPressable
+                        key={opt.id}
+                        profile="smallControl"
+                        onPress={() => handleSelectIncompleteIndication(opt.id as IncompleteTaskIndicationType)}
+                        style={[
+                          styles.indicationOptionRow,
+                          {
+                            backgroundColor: isSelected ? colors.accent + '15' : 'transparent',
+                            borderColor: isSelected ? colors.accent : colors.subtleBorder,
+                          },
+                        ]}
+                      >
+                        <View style={styles.indicationRadioWrap}>
+                          <View
+                            style={[
+                              styles.radioOuter,
+                              { borderColor: isSelected ? colors.accent : colors.textTertiary },
+                            ]}
+                          >
+                            {isSelected && (
+                              <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />
+                            )}
+                          </View>
+                          <View style={styles.indicationTextCol}>
+                            <Text
+                              style={[
+                                styles.indicationOptionLabel,
+                                { color: isSelected ? colors.accent : colors.textPrimary, fontWeight: isSelected ? '700' : '600' },
+                              ]}
+                            >
+                              {opt.label}
+                            </Text>
+                            <Text style={[styles.indicationOptionDesc, { color: colors.textTertiary }]}>
+                              {opt.desc}
+                            </Text>
+                          </View>
+                        </View>
+                        {isSelected && <Check size={16} color={colors.accent} />}
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              {/* Notification Permission State Row */}
+              <SettingsRow
+                icon={
+                  <ShieldCheck
+                    size={20}
+                    color={notifPermState === 'granted' ? colors.success : colors.warning}
+                  />
+                }
+                title="Notification Permission"
+                subtitle={
+                  notifPermState === 'granted'
+                    ? 'Granted — Ready for on-time alerts & live timer'
+                    : notifPermState === 'blocked'
+                    ? 'Blocked — Tap to open System Settings'
+                    : 'Tap to grant notification permissions'
+                }
+                onPress={notifPermState !== 'granted' ? handleRequestNotifPermission : undefined}
+                showChevron={notifPermState !== 'granted'}
+              />
             </ElevatedCard>
+
 
             {/* Data & Backup Section */}
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>DATA & BACKUP</Text>
@@ -383,13 +551,147 @@ export default function SettingsScreen() {
               />
             </ElevatedCard>
 
+            {/* Software Updates Section */}
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>SOFTWARE UPDATES</Text>
+            <ElevatedCard style={styles.cardSection}>
+              <View style={styles.updateCardInner}>
+                <View style={styles.updateInfoRow}>
+                  <View style={[styles.updateIconBox, { backgroundColor: colors.accent + '15' }]}>
+                    <RefreshCw size={20} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.updateTitle, { color: colors.textPrimary }]}>
+                      Taskora for Android
+                    </Text>
+                    <Text style={[styles.updateSub, { color: colors.textTertiary }]}>
+                      Installed: v{Constants.expoConfig?.version || '1.0.0'}
+                      {updateState.manifest ? ` • Latest: v${updateState.manifest.latestVersion}` : ''}
+                    </Text>
+                  </View>
+
+                  {/* Status Indicator Badge */}
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          updateState.status === 'update_available' || updateState.status === 'ready_to_install'
+                            ? colors.accent + '20'
+                            : updateState.status === 'error'
+                            ? colors.error + '20'
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.05)',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        {
+                          color:
+                            updateState.status === 'update_available' || updateState.status === 'ready_to_install'
+                              ? colors.accent
+                              : updateState.status === 'error'
+                              ? colors.error
+                              : colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {updateState.status === 'checking'
+                        ? 'Checking...'
+                        : updateState.status === 'downloading'
+                        ? `${updateState.downloadProgress}%`
+                        : updateState.status === 'verifying'
+                        ? 'Verifying'
+                        : updateState.status === 'ready_to_install'
+                        ? 'Ready'
+                        : updateState.status === 'update_available'
+                        ? 'New Version'
+                        : 'Up to Date'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Progress Bar if downloading */}
+                {updateState.status === 'downloading' && (
+                  <View style={styles.updateProgressBarContainer}>
+                    <View
+                      style={[
+                        styles.updateProgressTrack,
+                        { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.updateProgressFill,
+                          { backgroundColor: colors.accent, width: `${updateState.downloadProgress}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Update Action Buttons */}
+                <View style={styles.updateActionsRow}>
+                  {updateState.status === 'ready_to_install' ? (
+                    <AnimatedPressable
+                      profile="primaryButton"
+                      style={[styles.checkUpdateBtn, { backgroundColor: colors.accent }]}
+                      onPress={() => updateService.installUpdate()}
+                    >
+                      <Download size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.checkUpdateBtnText}>Install Update</Text>
+                    </AnimatedPressable>
+                  ) : updateState.status === 'update_available' ? (
+                    <AnimatedPressable
+                      profile="primaryButton"
+                      style={[styles.checkUpdateBtn, { backgroundColor: colors.accent }]}
+                      onPress={() => updateService.downloadUpdate()}
+                    >
+                      <Download size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.checkUpdateBtnText}>
+                        Update to v{updateState.manifest?.latestVersion}
+                      </Text>
+                    </AnimatedPressable>
+                  ) : (
+                    <AnimatedPressable
+                      profile="smallControl"
+                      style={[
+                        styles.checkUpdateBtnOutline,
+                        {
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+                        },
+                      ]}
+                      onPress={() => {
+                        haptics.medium();
+                        updateService.checkForUpdates(true);
+                      }}
+                      disabled={updateState.status === 'checking'}
+                    >
+                      <RefreshCw
+                        size={13}
+                        color={colors.textPrimary}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[styles.checkUpdateBtnOutlineText, { color: colors.textPrimary }]}>
+                        {updateState.status === 'checking' ? 'Checking for updates...' : 'Check for Updates'}
+                      </Text>
+                    </AnimatedPressable>
+                  )}
+                </View>
+              </View>
+            </ElevatedCard>
+
             {/* About Section */}
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>ABOUT</Text>
             <ElevatedCard style={[styles.cardSection, { alignItems: 'center', paddingVertical: Spacing.lg }]}>
               <BrandLogo size={56} animated withShadow style={{ marginBottom: Spacing.sm }} />
               <Text style={[styles.aboutBrandTitle, { color: colors.textPrimary }]}>Taskora</Text>
               <Text style={[styles.aboutTagline, { color: colors.textSecondary }]}>Premium Productivity</Text>
-              <Text style={[styles.aboutVersion, { color: colors.textTertiary }]}>Version 1.0.0 (Phase 3 Build)</Text>
+              <Text style={[styles.aboutVersion, { color: colors.textTertiary }]}>
+                Version {Constants.expoConfig?.version || '1.0.0'} (Production Build)
+              </Text>
             </ElevatedCard>
           </ScrollView>
         </View>
@@ -492,6 +794,143 @@ const styles = StyleSheet.create({
     ...TypographyScale.caption1,
     marginTop: 4,
   },
+  incompleteSection: {
+    paddingVertical: Spacing.sm,
+  },
+  incompleteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  incompleteTitle: {
+    ...TypographyScale.body,
+    fontWeight: '700',
+  },
+  incompleteSubtitle: {
+    ...TypographyScale.caption1,
+    marginTop: 1,
+  },
+  indicationOptionsList: {
+    gap: Spacing.xs,
+  },
+  indicationOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+  },
+  indicationRadioWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  indicationTextCol: {
+    flex: 1,
+  },
+  indicationOptionLabel: {
+    ...TypographyScale.footnote,
+  },
+  indicationOptionDesc: {
+    ...TypographyScale.caption2,
+    marginTop: 1,
+  },
+  // Software update card styles
+  updateCardInner: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  updateInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  updateIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateTitle: {
+    ...TypographyScale.subhead,
+    fontWeight: '700',
+  },
+  updateSub: {
+    ...TypographyScale.caption2,
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radii.pill,
+  },
+  statusBadgeText: {
+    ...TypographyScale.caption2,
+    fontWeight: '700',
+  },
+  updateProgressBarContainer: {
+    width: '100%',
+    paddingVertical: 2,
+  },
+  updateProgressTrack: {
+    height: 5,
+    borderRadius: 2.5,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  updateProgressFill: {
+    height: '100%',
+    borderRadius: 2.5,
+  },
+  updateActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
+  checkUpdateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radii.sm,
+    cursor: 'pointer' as any,
+  },
+  checkUpdateBtnText: {
+    ...TypographyScale.footnote,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  checkUpdateBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    borderRadius: Radii.sm,
+    borderWidth: 1,
+    cursor: 'pointer' as any,
+  },
+  checkUpdateBtnOutlineText: {
+    ...TypographyScale.footnote,
+    fontWeight: '600',
+  },
 });
+
 
 

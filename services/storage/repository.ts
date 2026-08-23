@@ -16,7 +16,14 @@ export const KEYS = {
   SMART_SETTINGS: '@taskora_smart_settings',
   TIME_FORMAT: '@taskora_time_format',
   BACKGROUND_SETTINGS: '@taskora_background_settings',
+  CLOCK_STYLE: '@taskora_clock_style',
+  INCOMPLETE_TASK_INDICATION: '@taskora_incomplete_task_indication',
+  EXACT_ALARM_PERMISSION: '@taskora_exact_alarm_permission',
 };
+
+export type IncompleteTaskIndicationType = 'off' | 'notification' | 'alarm' | 'both';
+export type DesktopClockStyle = 'minimal' | 'digital' | 'analog';
+
 
 export const STORAGE_KEYS = KEYS;
 
@@ -51,11 +58,23 @@ export class Repository {
       return [];
     }
 
-    return tasks.map((t) => ({
-      ...t,
-      isPinned: t.isPinned ?? false,
-      isFavorite: t.isFavorite ?? false,
-    }));
+    return tasks.map((t) => {
+      const projectIds = Array.isArray(t.projectIds)
+        ? t.projectIds
+        : (t.projectId ? [t.projectId] : []);
+      const inbox = typeof t.inbox === 'boolean'
+        ? t.inbox
+        : (projectIds.length === 0);
+
+      return {
+        ...t,
+        projectIds,
+        projectId: projectIds[0] || t.projectId,
+        inbox,
+        isPinned: t.isPinned ?? false,
+        isFavorite: t.isFavorite ?? false,
+      };
+    });
   }
 
   static async saveTasks(tasks: Task[]): Promise<boolean> {
@@ -189,6 +208,25 @@ export class Repository {
   static async saveBackgroundSettings(settings: any): Promise<boolean> {
     return await StorageAdapter.setItem(KEYS.BACKGROUND_SETTINGS, settings);
   }
+
+  static async loadClockStyle(): Promise<DesktopClockStyle> {
+    const style = await StorageAdapter.getItem<DesktopClockStyle>(KEYS.CLOCK_STYLE);
+    return style || 'digital';
+  }
+
+  static async saveClockStyle(style: DesktopClockStyle): Promise<boolean> {
+    return await StorageAdapter.setItem(KEYS.CLOCK_STYLE, style);
+  }
+
+  static async loadIncompleteTaskIndication(): Promise<IncompleteTaskIndicationType> {
+    const mode = await StorageAdapter.getItem<IncompleteTaskIndicationType>(KEYS.INCOMPLETE_TASK_INDICATION);
+    return mode || 'both';
+  }
+
+  static async saveIncompleteTaskIndication(mode: IncompleteTaskIndicationType): Promise<boolean> {
+    return await StorageAdapter.setItem(KEYS.INCOMPLETE_TASK_INDICATION, mode);
+  }
+
 
   // Backup & Import
   static async exportBackupJSON(): Promise<string> {
