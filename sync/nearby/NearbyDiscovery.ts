@@ -30,6 +30,25 @@ export class NearbyDiscovery {
     this.proximityEstimators.clear();
     this.isScanning = true;
 
+    // Start native BLE scanning if available on Android
+    try {
+      const { NativeModules, NativeEventEmitter, Platform } = require('react-native');
+      if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.startDiscovery) {
+        await NativeModules.TaskoraBleModule.startDiscovery();
+        const eventEmitter = new NativeEventEmitter(NativeModules.TaskoraBleModule);
+        eventEmitter.addListener('onDeviceDiscovered', (data: any) => {
+          this.ingestDiscoveredDevice({
+            deviceId: data.id,
+            deviceName: data.name || 'Taskora Device',
+            platform: 'android',
+            rssi: data.rssi || -60,
+          });
+        });
+      }
+    } catch (bleErr) {
+      console.warn('[NearbyDiscovery] Native BLE scan notice:', bleErr);
+    }
+
     // Set scan timeout
     if (this.scanTimeoutTimer) clearTimeout(this.scanTimeoutTimer);
     this.scanTimeoutTimer = setTimeout(() => {
@@ -48,8 +67,15 @@ export class NearbyDiscovery {
       clearTimeout(this.scanTimeoutTimer);
       this.scanTimeoutTimer = null;
     }
+    try {
+      const { NativeModules, Platform } = require('react-native');
+      if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.stopDiscovery) {
+        NativeModules.TaskoraBleModule.stopDiscovery().catch(() => {});
+      }
+    } catch {}
     this.isScanning = false;
   }
+
 
   /**
    * Ingests a raw discovery beacon from BLE advertisement

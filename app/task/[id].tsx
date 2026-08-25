@@ -35,7 +35,8 @@ import { ElevatedCard } from '../../components/common/ElevatedCard';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
 import { TaskCheckbox } from '../../components/tasks/TaskCheckbox';
 import { useTaskora, useTheme } from '../../store/useTaskora';
-import { PriorityLevel, ReminderOption, RecurrenceFrequency, Task } from '../../models/task';
+import { PriorityLevel, ReminderOption, RecurrenceFrequency, Task, TaskReminderConfig } from '../../models/task';
+import { ReminderScheduler } from '../../services/notifications/ReminderScheduler';
 import { Radii, Spacing, TypographyScale, Shadows } from '../../theme/tokens';
 import { safeGoBack } from '../../utils/navigation';
 import { WindowsDesktopShell } from '../../components/desktop/WindowsDesktopShell';
@@ -92,6 +93,7 @@ export default function TaskDetailScreen() {
       : (!task?.projectId && (!task?.projectIds || task.projectIds.length === 0))
   );
   const [reminder, setReminder] = useState<ReminderOption>(task?.reminder || 'none');
+  const [reminderConfig, setReminderConfig] = useState<TaskReminderConfig | undefined>(task?.reminderConfig);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -102,6 +104,15 @@ export default function TaskDetailScreen() {
   // Date picker modal
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [customDateInput, setCustomDateInput] = useState(task?.dueDate || getTodayDateString());
+
+  // Custom Reminder Date/Time Modal
+  const [customReminderModalVisible, setCustomReminderModalVisible] = useState(false);
+  const [customRemDateInput, setCustomRemDateInput] = useState(
+    task?.reminderConfig?.customDate || task?.dueDate || getTodayDateString()
+  );
+  const [customRemTimeInput, setCustomRemTimeInput] = useState(
+    task?.reminderConfig?.customTime || task?.dueTime || '17:30'
+  );
 
   // Keep local state synced if task updates externally
   useEffect(() => {
@@ -117,6 +128,13 @@ export default function TaskDetailScreen() {
         typeof task.inbox === 'boolean' ? task.inbox : (!task.projectId && pIds.length === 0)
       );
       setReminder(task.reminder || 'none');
+      setReminderConfig(task.reminderConfig);
+      if (task.reminderConfig?.customDate) {
+        setCustomRemDateInput(task.reminderConfig.customDate);
+      }
+      if (task.reminderConfig?.customTime) {
+        setCustomRemTimeInput(task.reminderConfig.customTime);
+      }
     }
   }, [task?.id, task?.updatedAt]);
 
@@ -149,6 +167,44 @@ export default function TaskDetailScreen() {
 
     const cleanTitle = title.trim() || task.title;
 
+    const timezone =
+      reminderConfig?.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+      'UTC';
+
+    let finalConfig: TaskReminderConfig | undefined = undefined;
+    if (reminder === 'custom') {
+      const customRes = ReminderScheduler.calculateCustomTrigger(customRemDateInput, customRemTimeInput, timezone);
+      if (customRes) {
+        finalConfig = {
+          enabled: true,
+          type: 'custom',
+          customDate: customRemDateInput,
+          customTime: customRemTimeInput,
+          triggerAt: customRes.canonicalIso,
+          triggerEpochMs: customRes.triggerEpochMs,
+          timezone,
+          snoozeEnabled: true,
+          alarmMode: 'both',
+        };
+      }
+    } else if (reminder !== 'none') {
+      const dummyTask: any = { dueDate, dueTime, reminder, completed: false };
+      const resolved = ReminderScheduler.resolveReminderTrigger(dummyTask);
+      if (resolved) {
+        finalConfig = {
+          enabled: true,
+          type: 'preset',
+          presetOption: reminder,
+          triggerAt: resolved.canonicalIso,
+          triggerEpochMs: resolved.triggerEpochMs,
+          timezone,
+          snoozeEnabled: true,
+          alarmMode: 'both',
+        };
+      }
+    }
+
     await updateTask(task.id, {
       title: cleanTitle,
       notes: notes.trim(),
@@ -159,6 +215,7 @@ export default function TaskDetailScreen() {
       projectIds: selectedProjectIds,
       inbox: inboxSelected,
       reminder,
+      reminderConfig: finalConfig,
     });
 
     setIsSaving(false);
@@ -491,15 +548,33 @@ export default function TaskDetailScreen() {
 
         {/* Reminders Card */}
         <ElevatedCard style={styles.cardSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Reminder</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
+            <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>Reminder</Text>
+            {reminder === 'custom' && (
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  haptics.selection();
+                  setCustomReminderModalVisible(true);
+                }}
+                style={{ paddingVertical: 2, paddingHorizontal: 8, borderRadius: Radii.sm, backgroundColor: colors.accent + '20' }}
+              >
+                <Text style={{ ...TypographyScale.caption2, color: colors.accent, fontWeight: '700' }}>Edit Time</Text>
+              </AnimatedPressable>
+            )}
+          </View>
+
           <View style={styles.chipRow}>
-            {(['none', 'at_time', '5m_before', '15m_before', '30m_before', '1h_before', '1d_before'] as ReminderOption[]).map((r) => (
+            {(['none', 'at_time', '5m_before', '15m_before', '30m_before', '1h_before', '1d_before', 'custom'] as ReminderOption[]).map((r) => (
               <AnimatedPressable
                 key={r}
                 profile="smallControl"
                 onPress={() => {
                   haptics.selection();
                   setReminder(r);
+                  if (r === 'custom') {
+                    setCustomReminderModalVisible(true);
+                  }
                 }}
                 style={[
                   styles.selectorChip,
@@ -520,6 +595,18 @@ export default function TaskDetailScreen() {
               </AnimatedPressable>
             ))}
           </View>
+
+          {/* Canonical Trigger Summary */}
+          {reminder !== 'none' && (
+            <View style={{ marginTop: Spacing.sm, padding: Spacing.sm, borderRadius: Radii.md, backgroundColor: colors.secondaryBackground, flexDirection: 'row', alignItems: 'center' }}>
+              <Bell size={14} color={colors.accent} style={{ marginRight: 6 }} />
+              <Text style={{ ...TypographyScale.caption1, color: colors.textSecondary, flex: 1 }}>
+                {reminder === 'custom'
+                  ? `Custom Alert: ${customRemDateInput} at ${customRemTimeInput} (${reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'})`
+                  : `Preset Alert: ${reminder.replace('_', ' ')} (${reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'})`}
+              </Text>
+            </View>
+          )}
         </ElevatedCard>
 
         {/* Priority Selector */}
@@ -747,6 +834,75 @@ export default function TaskDetailScreen() {
           </ElevatedCard>
         </View>
       </Modal>
+
+      {/* Custom Reminder Date/Time Picker Modal */}
+      <Modal visible={customReminderModalVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <ElevatedCard style={styles.pickerModalCard}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Set Custom Reminder</Text>
+            <Text style={{ ...TypographyScale.caption1, color: colors.textSecondary, marginBottom: Spacing.sm }}>
+              Remind you at an exact date & time in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'})
+            </Text>
+
+            <Text style={{ ...TypographyScale.caption2, color: colors.textTertiary, marginBottom: 2 }}>Reminder Date (YYYY-MM-DD)</Text>
+            <TextInput
+              value={customRemDateInput}
+              onChangeText={setCustomRemDateInput}
+              placeholder={getTodayDateString()}
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary, marginBottom: Spacing.sm }]}
+            />
+
+            <Text style={{ ...TypographyScale.caption2, color: colors.textTertiary, marginBottom: 2 }}>Reminder Time (HH:mm, 24-hr)</Text>
+            <TextInput
+              value={customRemTimeInput}
+              onChangeText={setCustomRemTimeInput}
+              placeholder="17:30"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setCustomReminderModalVisible(false)}
+                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  const tz = reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+                  const res = ReminderScheduler.calculateCustomTrigger(customRemDateInput.trim(), customRemTimeInput.trim(), tz);
+                  if (res) {
+                    setReminder('custom');
+                    setReminderConfig({
+                      enabled: true,
+                      type: 'custom',
+                      customDate: customRemDateInput.trim(),
+                      customTime: customRemTimeInput.trim(),
+                      triggerAt: res.canonicalIso,
+                      triggerEpochMs: res.triggerEpochMs,
+                      timezone: tz,
+                      snoozeEnabled: true,
+                      alarmMode: 'both',
+                    });
+                    setCustomReminderModalVisible(false);
+                    haptics.selection();
+                  } else {
+                    Alert.alert('Invalid Time', 'Please enter a valid future date (YYYY-MM-DD) and time (HH:mm).');
+                  }
+                }}
+                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Confirm Alert</Text>
+              </AnimatedPressable>
+            </View>
+          </ElevatedCard>
+        </View>
+      </Modal>
+
     </PrimarySurface>
   );
 }

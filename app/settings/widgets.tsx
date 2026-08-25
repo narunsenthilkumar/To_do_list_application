@@ -48,14 +48,26 @@ export default function WidgetsScreen() {
     setIsRefreshing(false);
   };
 
-  const handleAddWidgetGuide = () => {
+  const handleAddWidgetGuide = async () => {
     haptics.medium();
+
+    if (Platform.OS === 'android') {
+      try {
+        const { NativeModules } = require('react-native');
+        if (NativeModules.TaskoraWidgetModule?.pinWidget) {
+          const pinned = await NativeModules.TaskoraWidgetModule.pinWidget();
+          if (pinned) return;
+        }
+      } catch {}
+    }
+
     Alert.alert(
       `Add Taskora Widget (${selectedSize.toUpperCase()})`,
       `${capability.instructions.join('\n\n')}`,
       [{ text: 'Got it', style: 'default' }]
     );
   };
+
 
   const bottomInset = getBottomContentInset(insets);
 

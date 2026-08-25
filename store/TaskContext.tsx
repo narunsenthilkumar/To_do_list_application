@@ -139,6 +139,7 @@ export function normalizeTask(t: Partial<Task>): Task {
     tags: Array.isArray(t.tags) ? [...t.tags] : [],
     subtasks: Array.isArray(t.subtasks) ? [...t.subtasks] : [],
     reminder: t.reminder || 'none',
+    reminderConfig: t.reminderConfig,
     notificationId: t.notificationId,
     recurrence: t.recurrence,
     category: t.category,
@@ -176,6 +177,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (loadedSettings) {
           setSmartSettings({ ...DEFAULT_SMART_SETTINGS, ...loadedSettings });
         }
+
+        // Reconcile and restore all scheduled reminders on startup
+        NotificationService.reconcileScheduledReminders().catch(() => {});
       } catch (e) {
         console.error('[TaskProvider] Initial load error', e);
       } finally {
@@ -332,25 +336,27 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ],
         });
 
-        // If date/time/reminder changed, reschedule or cancel notification
+        // If date/time/reminder/reminderConfig changed, reschedule or cancel notification
         if (
+          updates.reminderConfig !== undefined ||
           updates.reminder !== undefined ||
           updates.dueDate !== undefined ||
           updates.dueTime !== undefined ||
           updates.completed !== undefined
         ) {
           try {
-            if (updated.reminder && updated.reminder !== 'none' && !updated.completed) {
+            if ((updated.reminderConfig?.enabled || (updated.reminder && updated.reminder !== 'none')) && !updated.completed) {
               const notifId = await NotificationService.scheduleTaskReminder(updated);
               updated.notificationId = notifId;
-            } else if (t.notificationId) {
-              await NotificationService.cancelTaskReminder(t.notificationId);
+            } else if (t.notificationId || t.id) {
+              await NotificationService.cancelTaskReminder(t.notificationId, t.id);
               updated.notificationId = undefined;
             }
           } catch (e) {
             console.warn('[TaskProvider] Notification reschedule warning:', e);
           }
         }
+
 
         return updated;
       })
@@ -545,13 +551,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const target = tasks.find((t) => t.id === id);
     if (!target) return;
 
-    if (target.notificationId) {
-      try {
-        await NotificationService.cancelTaskReminder(target.notificationId);
-      } catch {}
-    }
+    try {
+      await NotificationService.cancelTaskReminder(target.notificationId, target.id);
+    } catch {}
 
     const previousTasks = [...tasks];
+
     const updatedTasks = tasks.filter((t) => t.id !== id);
     haptics.heavy();
 

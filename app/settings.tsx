@@ -19,6 +19,7 @@ import { useTaskora } from '../store/useTaskora';
 import { Repository, IncompleteTaskIndicationType } from '../services/storage/repository';
 import { NotificationService, NotificationCapability } from '../services/notifications/notificationService';
 import { VoiceService, MicrophonePermissionStatus } from '../services/voice';
+import { PermissionManager, PermissionStatusMap } from '../services/permissions/PermissionManager';
 import { MAX_CONTENT_WIDTH } from '../theme/responsive';
 import { Spacing, TypographyScale, Radii } from '../theme/tokens';
 import { getBottomContentInset } from '../theme/materials';
@@ -55,18 +56,20 @@ export default function SettingsScreen() {
 
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [incompleteIndication, setIncompleteIndication] = useState<IncompleteTaskIndicationType>('both');
-  const [notifPermState, setNotifPermState] = useState<'granted' | 'denied' | 'undetermined' | 'blocked'>('undetermined');
   const [importSheetVisible, setImportSheetVisible] = useState(false);
-  const [micPermStatus, setMicPermStatus] = useState<MicrophonePermissionStatus>('undetermined');
   const [updateState, setUpdateState] = useState<UpdateState>(updateService.getState());
+  const [permMap, setPermMap] = useState<PermissionStatusMap>(PermissionManager.getStatus());
 
   useEffect(() => {
-    VoiceService.checkPermission().then(setMicPermStatus);
     Repository.loadIncompleteTaskIndication().then(setIncompleteIndication);
-    NotificationCapability.checkPermission().then(setNotifPermState);
+    PermissionManager.init().then(setPermMap);
+    const unsubPerms = PermissionManager.subscribe(setPermMap);
 
     const unsub = updateService.subscribe(setUpdateState);
-    return () => unsub();
+    return () => {
+      unsub();
+      unsubPerms();
+    };
   }, []);
 
   const handleSelectIncompleteIndication = async (mode: IncompleteTaskIndicationType) => {
@@ -75,20 +78,17 @@ export default function SettingsScreen() {
     await Repository.saveIncompleteTaskIndication(mode);
 
     if (mode === 'alarm' || mode === 'both') {
-      const perm = await NotificationCapability.checkPermission();
-      if (perm !== 'granted') {
+      const details = await PermissionManager.check('alarms');
+      if (details.state !== 'GRANTED') {
         Alert.alert(
-          'Alarm Reminders',
+          'Exact Alarms',
           'Exact alarms allow Taskora to alert you at the scheduled time with high-urgency notifications.',
           [
             { text: 'Not Now', style: 'cancel' },
             {
               text: 'Enable',
               onPress: async () => {
-                const granted = await NotificationCapability.requestPermission();
-                if (granted) {
-                  setNotifPermState('granted');
-                }
+                await PermissionManager.request('alarms');
               },
             },
           ]
@@ -97,28 +97,18 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleRequestNotifPermission = async () => {
+  const handleRequestPermission = async (type: 'notifications' | 'bluetooth' | 'microphone' | 'alarms') => {
     haptics.light();
-    if (notifPermState === 'blocked') {
-      await NotificationCapability.openSystemSettings();
+    const details = permMap[type];
+    if (details.state === 'BLOCKED') {
+      await PermissionManager.openSystemSettings();
     } else {
-      const granted = await NotificationCapability.requestPermission();
-      setNotifPermState(granted ? 'granted' : 'denied');
-    }
-  };
-
-
-  const handleRequestMicPermission = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (micPermStatus === 'blocked') {
-      await VoiceService.openSettings();
-    } else {
-      const res = await VoiceService.requestPermission();
-      setMicPermStatus(res);
+      await PermissionManager.request(type);
     }
   };
 
   const handleExportData = async () => {
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const jsonStr = await Repository.exportBackupJSON();
     Alert.alert('Data Export Ready', 'Your Taskora backup JSON is ready. You can copy it below or restore it anytime.', [
@@ -307,20 +297,21 @@ export default function SettingsScreen() {
                 <>
                   <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
                   <SettingsRow
-                    icon={<ShieldCheck size={20} color={micPermStatus === 'granted' ? colors.success : colors.warning} />}
+                    icon={<ShieldCheck size={20} color={permMap.microphone.state === 'GRANTED' ? colors.success : colors.warning} />}
                     title="Microphone Permission"
                     subtitle={
-                      micPermStatus === 'granted'
+                      permMap.microphone.state === 'GRANTED'
                         ? 'Granted — Ready for on-device voice tasks'
-                        : micPermStatus === 'blocked'
+                        : permMap.microphone.state === 'BLOCKED'
                         ? 'Blocked — Tap to open System Settings'
                         : 'Tap to grant microphone access'
                     }
-                    onPress={micPermStatus !== 'granted' ? handleRequestMicPermission : undefined}
-                    showChevron={micPermStatus !== 'granted'}
+                    onPress={permMap.microphone.state !== 'GRANTED' ? () => handleRequestPermission('microphone') : undefined}
+                    showChevron={permMap.microphone.state !== 'GRANTED'}
                   />
                 </>
               )}
+
 
               <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
 
@@ -474,26 +465,91 @@ export default function SettingsScreen() {
 
               <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
 
-              {/* Notification Permission State Row */}
               <SettingsRow
-                icon={
-                  <ShieldCheck
-                    size={20}
-                    color={notifPermState === 'granted' ? colors.success : colors.warning}
-                  />
-                }
-                title="Notification Permission"
+                icon={<Bell size={20} color={permMap.notifications.state === 'GRANTED' ? colors.success : colors.warning} />}
+                title="Notifications"
                 subtitle={
-                  notifPermState === 'granted'
-                    ? 'Granted — Ready for on-time alerts & live timer'
-                    : notifPermState === 'blocked'
-                    ? 'Blocked — Tap to open System Settings'
-                    : 'Tap to grant notification permissions'
+                  permMap.notifications.state === 'GRANTED'
+                    ? 'Allowed — On-time alerts and live focus active'
+                    : permMap.notifications.state === 'BLOCKED'
+                    ? 'Blocked in System Settings — Tap to enable'
+                    : 'Tap to allow task reminder alerts'
                 }
-                onPress={notifPermState !== 'granted' ? handleRequestNotifPermission : undefined}
-                showChevron={notifPermState !== 'granted'}
+                trailing={
+                  <View style={[styles.permBadge, { backgroundColor: permMap.notifications.state === 'GRANTED' ? colors.success + '20' : colors.warning + '20' }]}>
+                    <Text style={[styles.permBadgeText, { color: permMap.notifications.state === 'GRANTED' ? colors.success : colors.warning }]}>
+                      {permMap.notifications.state === 'GRANTED' ? 'Allowed' : permMap.notifications.state === 'BLOCKED' ? 'Blocked' : 'Enable'}
+                    </Text>
+                  </View>
+                }
+                onPress={() => handleRequestPermission('notifications')}
+              />
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              <SettingsRow
+                icon={<Clock size={20} color={permMap.alarms.state === 'GRANTED' ? colors.success : colors.warning} />}
+                title="Exact Alarms & Timers"
+                subtitle={
+                  permMap.alarms.state === 'GRANTED'
+                    ? 'Enabled — High-precision alerts and alarms'
+                    : 'Disabled — Using standard notification alerts'
+                }
+                trailing={
+                  <View style={[styles.permBadge, { backgroundColor: permMap.alarms.state === 'GRANTED' ? colors.success + '20' : colors.warning + '20' }]}>
+                    <Text style={[styles.permBadgeText, { color: permMap.alarms.state === 'GRANTED' ? colors.success : colors.warning }]}>
+                      {permMap.alarms.state === 'GRANTED' ? 'Enabled' : 'Configure'}
+                    </Text>
+                  </View>
+                }
+                onPress={() => handleRequestPermission('alarms')}
+              />
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              <SettingsRow
+                icon={<ShieldCheck size={20} color={permMap.bluetooth.state === 'GRANTED' ? colors.success : colors.textTertiary} />}
+                title="Bluetooth (Nearby Sync)"
+                subtitle={
+                  permMap.bluetooth.state === 'GRANTED'
+                    ? 'Allowed — Local device discovery and sync ready'
+                    : permMap.bluetooth.state === 'UNAVAILABLE'
+                    ? 'Unsupported on this device platform'
+                    : 'Required to discover nearby Taskora phones'
+                }
+                trailing={
+                  <View style={[styles.permBadge, { backgroundColor: permMap.bluetooth.state === 'GRANTED' ? colors.success + '20' : colors.secondaryBackground }]}>
+                    <Text style={[styles.permBadgeText, { color: permMap.bluetooth.state === 'GRANTED' ? colors.success : colors.textSecondary }]}>
+                      {permMap.bluetooth.state === 'GRANTED' ? 'Allowed' : permMap.bluetooth.state === 'UNAVAILABLE' ? 'N/A' : 'Allow'}
+                    </Text>
+                  </View>
+                }
+                onPress={permMap.bluetooth.state !== 'UNAVAILABLE' ? () => handleRequestPermission('bluetooth') : undefined}
+              />
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              <SettingsRow
+                icon={<Mic size={20} color={permMap.microphone.state === 'GRANTED' ? colors.success : colors.textTertiary} />}
+                title="Microphone (Voice Capture)"
+                subtitle={
+                  permMap.microphone.state === 'GRANTED'
+                    ? 'Allowed — On-device speech recognition active'
+                    : permMap.microphone.state === 'BLOCKED'
+                    ? 'Blocked in System Settings — Tap to enable'
+                    : 'Contextual voice input for hands-free tasks'
+                }
+                trailing={
+                  <View style={[styles.permBadge, { backgroundColor: permMap.microphone.state === 'GRANTED' ? colors.success + '20' : colors.secondaryBackground }]}>
+                    <Text style={[styles.permBadgeText, { color: permMap.microphone.state === 'GRANTED' ? colors.success : colors.textSecondary }]}>
+                      {permMap.microphone.state === 'GRANTED' ? 'Allowed' : 'Allow'}
+                    </Text>
+                  </View>
+                }
+                onPress={() => handleRequestPermission('microphone')}
               />
             </ElevatedCard>
+
 
 
             {/* Data & Backup Section */}
@@ -930,7 +986,17 @@ const styles = StyleSheet.create({
     ...TypographyScale.footnote,
     fontWeight: '600',
   },
+  permBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radii.sm,
+  },
+  permBadgeText: {
+    ...TypographyScale.caption2,
+    fontWeight: '700',
+  },
 });
+
 
 
 

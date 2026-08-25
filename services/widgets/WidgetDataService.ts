@@ -121,12 +121,23 @@ export class WidgetDataService {
       this.cachedSnapshot = snapshot;
       await StorageAdapter.setItem(WIDGET_SNAPSHOT_STORAGE_KEY, snapshot);
 
+      // Sync with Android AppWidget Native Module if available
+      try {
+        const { NativeModules, Platform } = require('react-native');
+        if (Platform.OS === 'android' && NativeModules.TaskoraWidgetModule?.updateSnapshot) {
+          await NativeModules.TaskoraWidgetModule.updateSnapshot(JSON.stringify(snapshot));
+        }
+      } catch (nativeErr) {
+        // Safe fallback in non-native or Expo Go environments
+      }
+
       this.notifyListeners(snapshot);
       return snapshot;
     } catch (e) {
       console.warn('[WidgetDataService] Failed refreshing snapshot:', e);
       return this.cachedSnapshot;
     }
+
   }
 
   static getSnapshot(): WidgetSnapshotData {

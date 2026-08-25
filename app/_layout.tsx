@@ -22,7 +22,9 @@ function RootStack() {
     MigrationRunner.runMigrations();
     NotificationActions.init(router);
     WidgetDataService.init();
+    NotificationService.reconcileScheduledReminders().catch(() => {});
   }, [router]);
+
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {

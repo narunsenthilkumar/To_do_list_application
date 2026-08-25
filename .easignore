@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Expo and builds
+.expo/
+dist/
+dist-electron/
+out/
+web-build/
+expo-env.d.ts
+
+# Electron & Desktop builds
+electron/
+dist-electron/
+*.exe
+*.blockmap
+*.asar
+*.zip
+
+# Generated Native folders
+android/
+ios/
+
+# Logs & temp files
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+scratch/
+
+# Environment files
+.env*.local
+
+# System files
+.DS_Store
+*.pem
+*.tsbuildinfo
+.netlify

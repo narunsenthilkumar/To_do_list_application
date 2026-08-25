@@ -24,7 +24,24 @@ export interface ActivityLog {
   details?: string;
 }
 
-export type ReminderOption = 'none' | 'at_time' | '5m_before' | '15m_before' | '30m_before' | '1h_before' | '1d_before';
+export type ReminderOption = 'none' | 'at_time' | '5m_before' | '15m_before' | '30m_before' | '1h_before' | '1d_before' | 'custom';
+
+export type ReminderType = 'preset' | 'custom' | 'alarm';
+
+export interface TaskReminderConfig {
+  enabled: boolean;
+  type: ReminderType;
+  presetOption?: ReminderOption;
+  customDate?: string; // YYYY-MM-DD
+  customTime?: string; // HH:mm format
+  triggerAt: string; // Canonical ISO-8601 UTC timestamp string
+  triggerEpochMs: number; // Exact epoch milliseconds for native scheduling
+  timezone: string; // Local IANA timezone e.g. "Asia/Kolkata", "America/New_York", "UTC"
+  snoozeEnabled: boolean;
+  snoozeDurationMinutes?: number; // 5, 10, 15, 30
+  notificationId?: string;
+  alarmMode?: 'off' | 'notification' | 'alarm' | 'both';
+}
 
 export interface Task {
   id: string;
@@ -46,6 +63,7 @@ export interface Task {
   tags: string[];
   subtasks: Subtask[];
   reminder?: ReminderOption;
+  reminderConfig?: TaskReminderConfig;
   notificationId?: string;
   recurrence?: RecurrenceRule;
   category?: string;
@@ -57,3 +75,4 @@ export interface Task {
   updatedByDeviceId?: string;
   deletedAt?: string;
 }
+

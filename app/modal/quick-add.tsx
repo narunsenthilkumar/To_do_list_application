@@ -53,7 +53,8 @@ import {
   ParsedTask,
   CATEGORY_DEFINITIONS,
 } from '../../smart';
-import { PriorityLevel, RecurrenceFrequency, ReminderOption } from '../../models/task';
+import { PriorityLevel, RecurrenceFrequency, ReminderOption, TaskReminderConfig } from '../../models/task';
+import { ReminderScheduler } from '../../services/notifications/ReminderScheduler';
 import { getTodayDateString, getTomorrowDateString } from '../../services/storage/repository';
 import { Radii, Spacing, TypographyScale, Shadows } from '../../theme/tokens';
 import { MaterialLayers } from '../../theme/materials';
@@ -276,6 +277,25 @@ export default function QuickAddModal() {
         CategoryEngine.learnCorrection(title, category);
       }
 
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      let reminderConfig: TaskReminderConfig | undefined = undefined;
+      if (reminder && reminder !== 'none') {
+        const dummy: any = { dueDate, dueTime, reminder, completed: false };
+        const res = ReminderScheduler.resolveReminderTrigger(dummy);
+        if (res) {
+          reminderConfig = {
+            enabled: true,
+            type: 'preset',
+            presetOption: reminder,
+            triggerAt: res.canonicalIso,
+            triggerEpochMs: res.triggerEpochMs,
+            timezone,
+            snoozeEnabled: true,
+            alarmMode: 'both',
+          };
+        }
+      }
+
       await addTask({
         title,
         notes,
@@ -289,6 +309,7 @@ export default function QuickAddModal() {
         inbox: inboxSelected,
         tags: selectedTags,
         reminder,
+        reminderConfig,
         recurrence: recurrence !== 'never' ? { frequency: recurrence } : undefined,
         subtasks,
       });
@@ -300,6 +321,7 @@ export default function QuickAddModal() {
       Alert.alert('Task Creation Error', 'Could not save task. Please try again.');
     }
   };
+
 
 
   const handleAddSubtask = () => {

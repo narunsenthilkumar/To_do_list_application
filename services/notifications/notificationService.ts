@@ -3,11 +3,14 @@ import { Task, ReminderOption } from '../../models/task';
 import { NotificationCapability } from './NotificationCapability';
 import { FocusNotification } from './FocusNotification';
 import { TaskReminderNotification, IncompleteTaskIndicationMode } from './TaskReminderNotification';
+import { ReminderScheduler } from './ReminderScheduler';
+import { NotificationChannels } from './NotificationChannels';
+import { NotificationRegistry } from './NotificationRegistry';
 import { NotificationActions } from './NotificationActions';
 
 export type AlarmBehavior = 'notification_only' | 'sound_only' | 'vibration_only' | 'sound_and_vibration';
 
-// Configure notification behavior for Expo (foreground presentation)
+// Configure notification presentation handler
 try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -34,10 +37,19 @@ export class NotificationService {
   }
 
   /**
+   * Initializes notification channels
+   */
+  static async ensureChannels(): Promise<void> {
+    await NotificationChannels.ensureChannels();
+  }
+
+  /**
    * Calculates trigger date based on due date, due time, and reminder option offset.
    */
   static calculateTriggerDate(dueDate: string, dueTime?: string, reminder?: ReminderOption): Date | null {
-    return TaskReminderNotification.calculateTriggerDate(dueDate, dueTime, reminder);
+    const dummyTask: any = { dueDate, dueTime, reminder, completed: false };
+    const resolved = ReminderScheduler.resolveReminderTrigger(dummyTask);
+    return resolved ? resolved.triggerDate : null;
   }
 
   /**
@@ -48,7 +60,21 @@ export class NotificationService {
     alarmBehavior?: AlarmBehavior,
     projectName?: string
   ): Promise<string | undefined> {
-    return await TaskReminderNotification.scheduleTaskReminder(task, projectName);
+    return await ReminderScheduler.scheduleReminder(task, projectName);
+  }
+
+  /**
+   * Reschedules an updated task reminder
+   */
+  static async rescheduleTaskReminder(task: Task, projectName?: string): Promise<string | undefined> {
+    return await ReminderScheduler.rescheduleReminder(task, projectName);
+  }
+
+  /**
+   * Snoozes a task reminder
+   */
+  static async snoozeTaskReminder(taskId: string, snoozeMinutes?: number): Promise<string | undefined> {
+    return await ReminderScheduler.snoozeReminder(taskId, snoozeMinutes);
   }
 
   /**
@@ -58,7 +84,6 @@ export class NotificationService {
     sessionTitle: string = 'Focus Session Completed!',
     sessionBody: string = 'Great job staying productive. Time for a well-deserved break.'
   ): Promise<void> {
-    const { ActiveFocusSession } = require('../../models/focus');
     const dummySession = {
       id: `sess-${Date.now()}`,
       status: 'running' as const,
@@ -73,15 +98,34 @@ export class NotificationService {
     await FocusNotification.scheduleCompletion(dummySession);
   }
 
-  static async cancelTaskReminder(notificationId?: string): Promise<void> {
-    await TaskReminderNotification.cancelTaskReminder(notificationId);
+  static async cancelTaskReminder(notificationId?: string, taskId?: string): Promise<void> {
+    if (taskId) {
+      await ReminderScheduler.cancelReminder(taskId, notificationId);
+    } else if (notificationId) {
+      await TaskReminderNotification.cancelTaskReminder(notificationId);
+    }
   }
 
   static async cancelAllNotifications(): Promise<void> {
-    await TaskReminderNotification.cancelAll();
+    await ReminderScheduler.cancelAllTaskReminders();
     await FocusNotification.clear();
+  }
+
+  /**
+   * Reconciles all persisted task reminders on application startup
+   */
+  static async reconcileScheduledReminders(): Promise<{ reconciledCount: number; purgedCount: number }> {
+    return await ReminderScheduler.reconcileScheduledReminders();
   }
 }
 
-export { NotificationCapability, FocusNotification, TaskReminderNotification, NotificationActions };
+export {
+  NotificationCapability,
+  FocusNotification,
+  TaskReminderNotification,
+  NotificationActions,
+  ReminderScheduler,
+  NotificationChannels,
+  NotificationRegistry,
+};
 

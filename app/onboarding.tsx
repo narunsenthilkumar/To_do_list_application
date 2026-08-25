@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Sparkles, Target, Bell, ArrowRight } from 'lucide-react-native';
+import { Sparkles, Target, Bell, Clock, Radio, ArrowRight, ShieldCheck } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../components/common/PrimarySurface';
 import { BrandLogo } from '../components/common/BrandLogo';
 import { useTheme } from '../store/ThemeContext';
 import { Repository } from '../services/storage/repository';
-import { NotificationService } from '../services/notifications/notificationService';
+import { PermissionManager } from '../services/permissions/PermissionManager';
 import { Radii, Spacing, TypographyScale } from '../theme/tokens';
-
-const { width } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -23,29 +21,69 @@ export default function OnboardingScreen() {
       title: 'Organize your life.\nOne task at a time.',
       subtitle: 'Taskora brings Apple-inspired clarity, fluid gestures, and instant natural language task capture to your daily workflow.',
       color: colors.accent,
-    },
-    {
-      icon: Target,
-      title: 'Focus & Achieve\nYour Daily Goals.',
-      subtitle: 'Build unstoppable momentum with Pomodoro focus sessions, daily productivity streaks, and instant smart list organization.',
-      color: colors.warning,
+      permissionType: null,
+      actionText: 'Get Started',
     },
     {
       icon: Bell,
       title: 'Timely Reminders.\nNever miss what matters.',
-      subtitle: 'Schedule precise task notifications and recurring reminders that stay seamlessly synchronized across your day.',
+      subtitle: 'Allow Taskora to send you punctual notifications for upcoming tasks, daily reviews, and deadline reminders.',
+      color: colors.accent,
+      permissionType: 'notifications' as const,
+      actionText: 'Enable Notifications',
+    },
+    {
+      icon: Clock,
+      title: 'Exact Alarms &\nDeep Focus Sessions.',
+      subtitle: 'High-urgency exact alarms ensure critical tasks and Pomodoro timer intervals alert you reliably on time.',
+      color: colors.warning,
+      permissionType: 'alarms' as const,
+      actionText: 'Enable Reliable Alarms',
+    },
+    {
+      icon: Radio,
+      title: 'Nearby Sync.\nInstant Device Sharing.',
+      subtitle: 'Seamlessly discover and synchronize tasks with nearby Taskora devices using secure local Bluetooth transfer.',
       color: colors.success,
+      permissionType: 'bluetooth' as const,
+      actionText: 'Enable Nearby Sync',
+    },
+    {
+      icon: Target,
+      title: 'You are all set!\nWelcome to Taskora.',
+      subtitle: 'Experience lightning-fast offline-first productivity, personalized themes, and powerful local-first synchronization.',
+      color: colors.accent,
+      permissionType: null,
+      actionText: 'Enter Taskora',
     },
   ];
 
   const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const currentSlide = SLIDES[step];
+
+    // Contextual permission request for current step
+    if (currentSlide.permissionType) {
+      try {
+        await PermissionManager.request(currentSlide.permissionType);
+      } catch (e) {
+        console.warn('[Onboarding] Permission request warning:', e);
+      }
+    }
+
     if (step < SLIDES.length - 1) {
       setStep(step + 1);
     } else {
-      try {
-        await NotificationService.requestPermissions();
-      } catch {}
+      await Repository.saveOnboardingDone(true);
+      router.replace('/');
+    }
+  };
+
+  const handleSkip = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (step < SLIDES.length - 1) {
+      setStep(step + 1);
+    } else {
       await Repository.saveOnboardingDone(true);
       router.replace('/');
     }
@@ -96,9 +134,15 @@ export default function OnboardingScreen() {
             pressed && { opacity: 0.85 },
           ]}
         >
-          <Text style={styles.nextBtnText}>{step === SLIDES.length - 1 ? 'Get Started' : 'Continue'}</Text>
+          <Text style={styles.nextBtnText}>{current.actionText}</Text>
           <ArrowRight size={20} color="#FFFFFF" style={{ marginLeft: 6 }} />
         </Pressable>
+
+        {step > 0 && step < SLIDES.length - 1 && (
+          <Pressable onPress={handleSkip} style={styles.skipBtn}>
+            <Text style={[styles.skipBtnText, { color: colors.textTertiary }]}>Not Now</Text>
+          </Pressable>
+        )}
       </View>
     </PrimarySurface>
   );
@@ -134,13 +178,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   footer: {
-    gap: Spacing.xl,
+    gap: Spacing.md,
     paddingBottom: Spacing.xl,
   },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
   dot: {
     height: 8,
@@ -157,5 +202,13 @@ const styles = StyleSheet.create({
     ...TypographyScale.headline,
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  skipBtn: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  skipBtnText: {
+    ...TypographyScale.footnote,
+    fontWeight: '600',
   },
 });
