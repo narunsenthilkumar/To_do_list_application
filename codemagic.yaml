@@ -10,12 +10,10 @@ workflows:
   android-release:
     name: Android Production Release (APK & AAB)
     max_build_duration: 60
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       node: 20.18.0
       java: 21
-      groups:
-        - google_play # Define in Codemagic UI: Environment variable groups if needed
       vars:
         PACKAGE_NAME: "com.taskora.app"
     triggering:
@@ -38,7 +36,7 @@ workflows:
           npm ci
       - name: Set up Android SDK & Gradle Permissions
         script: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > android/local.properties
           chmod +x android/gradlew
       - name: Build Android Release (APK & AAB)
         script: |
@@ -62,7 +60,7 @@ workflows:
   android-debug:
     name: Android Debug Build (Fast Testing APK)
     max_build_duration: 45
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       node: 20.18.0
       java: 21
@@ -85,7 +83,7 @@ workflows:
           npm ci
       - name: Set up Android SDK & Gradle Permissions
         script: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > android/local.properties
           chmod +x android/gradlew
       - name: Build Android Debug APK
         script: |
@@ -112,8 +110,6 @@ workflows:
       node: 20.18.0
       xcode: latest
       cocoapods: default
-      groups:
-        - app_store_credentials # Define App Store Connect API keys in Codemagic UI if publishing
       vars:
         BUNDLE_ID: "com.taskora.app"
     triggering:
@@ -165,7 +161,7 @@ workflows:
   web-export:
     name: Web Single Page App Export
     max_build_duration: 20
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     environment:
       node: 20.18.0
     triggering:
