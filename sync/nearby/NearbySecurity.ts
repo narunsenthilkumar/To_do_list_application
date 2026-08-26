@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { Encryption } from '../../security/Encryption';
 
 export class NearbySecurity {
@@ -6,14 +7,12 @@ export class NearbySecurity {
    * Formatted e.g. "483 921"
    */
   public static generateVerificationCode(): { raw: string; formatted: string } {
-    const rawUUID = Encryption.generateUUID().replace(/[^0-9]/g, '');
-    let digits = rawUUID.slice(0, 6);
-    
-    // Fallback if UUID doesn't have 6 digits immediately
-    while (digits.length < 6) {
-      const extra = Math.floor(100000 + Math.random() * 900000).toString();
-      digits = (digits + extra).slice(0, 6);
-    }
+    const bytes = new Uint8Array(4);
+    Crypto.getRandomValues(bytes);
+    // Convert 4 random bytes to integer in range 100000 - 999999
+    const uint32 = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+    const num = 100000 + (uint32 % 900000);
+    const digits = num.toString().padStart(6, '0');
 
     const formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)}`;
     return { raw: digits, formatted };

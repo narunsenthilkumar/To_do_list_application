@@ -30,8 +30,9 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
         "RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO",
         "BLUETOOTH",
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_SCAN",

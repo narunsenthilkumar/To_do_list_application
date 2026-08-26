@@ -34,6 +34,9 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
+      - name: Generate Android Native Project via Expo Prebuild
+        script: |
+          npx expo prebuild --platform android --clean --no-install
       - name: Set up Android SDK & Gradle Permissions
         script: |
           echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > android/local.properties
@@ -81,6 +84,9 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
+      - name: Generate Android Native Project via Expo Prebuild
+        script: |
+          npx expo prebuild --platform android --clean --no-install
       - name: Set up Android SDK & Gradle Permissions
         script: |
           echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > android/local.properties
@@ -131,7 +137,7 @@ workflows:
           npm ci
       - name: Generate iOS Native Project via Expo Prebuild
         script: |
-          npx expo prebuild --platform ios --clean
+          npx expo prebuild --platform ios --clean --no-install
       - name: Install CocoaPods dependencies
         script: |
           cd ios && pod install

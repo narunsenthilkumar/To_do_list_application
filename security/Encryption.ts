@@ -87,15 +87,18 @@ function sha256(ascii: string): string {
   return result;
 }
 
+import * as Crypto from 'expo-crypto';
+
 export class Encryption {
   /**
-   * Generates a random cryptographic hex salt
+   * Generates a random cryptographic hex salt using secure random bytes
    */
   public static generateSalt(length: number = 16): string {
-    const chars = '0123456789abcdef';
+    const bytes = new Uint8Array(length);
+    Crypto.getRandomValues(bytes);
     let salt = '';
-    for (let i = 0; i < length * 2; i++) {
-      salt += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < bytes.length; i++) {
+      salt += bytes[i].toString(16).padStart(2, '0');
     }
     return salt;
   }
@@ -127,12 +130,16 @@ export class Encryption {
   }
 
   /**
-   * Generates a unique stable ID with random entropy
+   * Generates a unique stable ID with cryptographically secure random entropy
    */
   public static generateUUID(prefix: string = ''): string {
     const timestamp = Date.now().toString(36);
-    const randomHex = Math.random().toString(36).substring(2, 10);
-    const extra = Math.random().toString(36).substring(2, 6);
-    return prefix ? `${prefix}-${timestamp}-${randomHex}-${extra}` : `${timestamp}-${randomHex}-${extra}`;
+    const bytes = new Uint8Array(8);
+    Crypto.getRandomValues(bytes);
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, '0');
+    }
+    return prefix ? `${prefix}-${timestamp}-${hex}` : `${timestamp}-${hex}`;
   }
 }
