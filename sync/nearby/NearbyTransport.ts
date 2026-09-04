@@ -1,3 +1,4 @@
+import { Platform, NativeModules } from 'react-native';
 import { SyncPayload } from '../types';
 import { NearbyDevice, NearbyTransferChunk } from './types';
 import { BluetoothTransport } from './BluetoothTransport';
@@ -28,7 +29,14 @@ export class NearbyTransport {
 
   public async connect(device: NearbyDevice): Promise<TransportConnection> {
     this.status = 'connecting';
-    // Simulate or establish BLE connection
+    if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.connectToDevice) {
+      try {
+        await NativeModules.TaskoraBleModule.connectToDevice(device.deviceId);
+      } catch (e) {
+        console.warn('[NearbyTransport] Native BLE connect warning:', e);
+      }
+    }
+
     this.currentConnection = {
       deviceId: device.deviceId,
       connectedAt: Date.now(),
@@ -41,14 +49,47 @@ export class NearbyTransport {
   }
 
   public async disconnect(): Promise<void> {
+    if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.disconnectDevice) {
+      try {
+        await NativeModules.TaskoraBleModule.disconnectDevice();
+      } catch {}
+    }
     this.currentConnection = null;
     this.status = 'disconnected';
   }
 
-  public async sendChunks(chunks: NearbyTransferChunk[]): Promise<boolean> {
+  public async sendHandshake(targetDeviceId: string, messageStr: string): Promise<boolean> {
+    if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.sendHandshake) {
+      try {
+        await NativeModules.TaskoraBleModule.sendHandshake(targetDeviceId, messageStr);
+        return true;
+      } catch (e) {
+        console.warn('[NearbyTransport] sendHandshake failed:', e);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public async sendChunks(chunks: NearbyTransferChunk[], targetDeviceId?: string): Promise<boolean> {
     this.status = 'transferring';
-    // Send chunk stream
+    const devId = targetDeviceId || this.currentConnection?.deviceId || '';
+
+    if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.sendChunk && devId) {
+      try {
+        for (const chunk of chunks) {
+          const chunkJson = JSON.stringify(chunk);
+          await NativeModules.TaskoraBleModule.sendChunk(devId, chunkJson);
+        }
+      } catch (e) {
+        console.warn('[NearbyTransport] sendChunks error:', e);
+        this.status = 'error';
+        return false;
+      }
+    }
+
     this.status = 'connected';
     return true;
   }
 }
+

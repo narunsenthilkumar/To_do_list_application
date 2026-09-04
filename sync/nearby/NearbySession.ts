@@ -1,14 +1,18 @@
+import { Platform } from 'react-native';
 import {
   NearbySessionState,
   NearbyDevice,
   NearbyVerificationContext,
   NearbySessionSummary,
+  NearbyTransferChunk,
   ProximityLevel,
   TransferDirection,
 } from './types';
 import { NearbyCapability } from './NearbyCapability';
 import { NearbyPermissions } from './NearbyPermissions';
 import { NearbyDiscovery } from './NearbyDiscovery';
+import { NearbyTransport } from './NearbyTransport';
+import { BluetoothTransport } from './BluetoothTransport';
 import { MotionDetector } from './MotionDetector';
 import { NearbyPairing } from './NearbyPairing';
 import { NearbyTransfer } from './NearbyTransfer';
@@ -32,7 +36,11 @@ export class NearbySession {
   private transferDirection: TransferDirection = 'BIDIRECTIONAL';
 
   private discovery: NearbyDiscovery = new NearbyDiscovery();
+  private transport: NearbyTransport = new NearbyTransport();
   private motionDetector: MotionDetector = new MotionDetector();
+
+  private receivedChunks: NearbyTransferChunk[] = [];
+  private bleSubscription: any = null;
 
   private stateListeners: Set<StateListener> = new Set();
   private progressListeners: Set<ProgressListener> = new Set();
@@ -46,6 +54,28 @@ export class NearbySession {
   constructor() {
     this.setupDiscoveryListeners();
     this.setupMotionListeners();
+    this.setupNativeGattListeners();
+  }
+
+  private setupNativeGattListeners(): void {
+    if (Platform.OS === 'android') {
+      try {
+        const { NativeModules, NativeEventEmitter } = require('react-native');
+        if (NativeModules.TaskoraBleModule) {
+          const emitter = new NativeEventEmitter(NativeModules.TaskoraBleModule);
+          this.bleSubscription = emitter.addListener('onChunkReceived', (event: { senderDeviceId: string; data: string }) => {
+            try {
+              const chunk: NearbyTransferChunk = JSON.parse(event.data);
+              this.receivedChunks.push(chunk);
+            } catch (e) {
+              console.warn('[NearbySession] Error parsing GATT chunk:', e);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('[NearbySession] Error setting up GATT listeners:', e);
+      }
+    }
   }
 
   public getState(): NearbySessionState {
@@ -145,7 +175,16 @@ export class NearbySession {
     this.notifyProgress(35, `Connecting with ${device.deviceName}...`);
 
     try {
+      if (!device.isSimulated) {
+        await this.transport.connect(device);
+      }
+
       const { message, verificationContext } = await NearbyPairing.createHandshakeInit(device);
+
+      if (!device.isSimulated) {
+        await this.transport.sendHandshake(device.deviceId, JSON.stringify(message));
+      }
+
       this.verificationContext = verificationContext;
       this.notifyVerification(verificationContext);
 
@@ -194,8 +233,20 @@ export class NearbySession {
           this.targetDevice.deviceName
         );
       } else {
-        const { payload } = await NearbyTransfer.prepareOutgoingPayload();
-        incomingPayload = payload;
+        const { payload, chunks } = await NearbyTransfer.prepareOutgoingPayload();
+        await this.transport.sendChunks(chunks, this.targetDevice.deviceId);
+
+        if (this.receivedChunks.length > 0) {
+          const batchId = this.receivedChunks[0]?.batchId || payload.batchId;
+          const reassembled = BluetoothTransport.reassembleChunks(this.receivedChunks, batchId);
+          if (reassembled.success && reassembled.data) {
+            incomingPayload = JSON.parse(reassembled.data);
+          } else {
+            incomingPayload = payload;
+          }
+        } else {
+          incomingPayload = payload;
+        }
       }
 
       this.setState('MERGING');
@@ -353,7 +404,13 @@ export class NearbySession {
 
   public cleanup(): void {
     this.discovery.stopScanning();
+    this.transport.disconnect();
     this.motionDetector.stop();
+    this.receivedChunks = [];
+    if (this.bleSubscription) {
+      this.bleSubscription.remove();
+      this.bleSubscription = null;
+    }
     NearbyPairing.clearActiveVerification();
     if (this.sessionTimeoutTimer) {
       clearTimeout(this.sessionTimeoutTimer);

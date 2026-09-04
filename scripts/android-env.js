@@ -2,7 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = (function() {
+  const resolved = path.resolve(__dirname, '..');
+  // Use Junction C:\taskora if available and project has spaces/quotes
+  if (process.platform === 'win32' && (resolved.includes(' ') || resolved.includes("'"))) {
+    if (fs.existsSync('C:\\taskora\\package.json')) {
+      return 'C:\\taskora';
+    }
+  }
+  return resolved;
+})();
 const ANDROID_ROOT = path.join(PROJECT_ROOT, 'android');
 
 /**
@@ -230,6 +239,9 @@ function getAndroidEnvironment() {
 function getGradleEnv() {
   const envInfo = getAndroidEnvironment();
   const customEnv = { ...process.env };
+
+  // Resolve conflict between ANDROID_PREFS_ROOT and ANDROID_USER_HOME
+  delete customEnv.ANDROID_PREFS_ROOT;
 
   if (envInfo.java?.path) {
     customEnv.JAVA_HOME = envInfo.java.path;

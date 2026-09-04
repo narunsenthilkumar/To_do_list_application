@@ -30,11 +30,14 @@ export class NearbyDiscovery {
     this.proximityEstimators.clear();
     this.isScanning = true;
 
-    // Start native BLE scanning if available on Android
+    // Start native BLE scanning & advertising if available on Android
     try {
       const { NativeModules, NativeEventEmitter, Platform } = require('react-native');
       if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.startDiscovery) {
+        const myName = DeviceIdService.getDeviceName();
+        await NativeModules.TaskoraBleModule.startAdvertising(myName).catch(() => {});
         await NativeModules.TaskoraBleModule.startDiscovery();
+
         const eventEmitter = new NativeEventEmitter(NativeModules.TaskoraBleModule);
         eventEmitter.addListener('onDeviceDiscovered', (data: any) => {
           this.ingestDiscoveredDevice({
@@ -69,8 +72,9 @@ export class NearbyDiscovery {
     }
     try {
       const { NativeModules, Platform } = require('react-native');
-      if (Platform.OS === 'android' && NativeModules.TaskoraBleModule?.stopDiscovery) {
-        NativeModules.TaskoraBleModule.stopDiscovery().catch(() => {});
+      if (Platform.OS === 'android' && NativeModules.TaskoraBleModule) {
+        NativeModules.TaskoraBleModule.stopDiscovery?.().catch(() => {});
+        NativeModules.TaskoraBleModule.stopAdvertising?.().catch(() => {});
       }
     } catch {}
     this.isScanning = false;
