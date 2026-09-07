@@ -86,12 +86,16 @@ const styles = StyleSheet.create({
   rowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 48,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+    minHeight: 52,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm,
     width: '100%',
   },
   iconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
     marginRight: Spacing.md,
     flexShrink: 0,
     justifyContent: 'center',
@@ -100,18 +104,24 @@ const styles = StyleSheet.create({
   contentSection: {
     flex: 1,
     flexShrink: 1,
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
+    justifyContent: 'center',
   },
   titleText: {
     ...TypographyScale.body,
+    fontWeight: '600',
+    fontSize: 15,
   },
   subtitleText: {
     ...TypographyScale.caption1,
+    fontSize: 12.5,
+    lineHeight: 16,
     marginTop: 2,
   },
   trailingWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 0,
+    marginLeft: 'auto',
   },
 });

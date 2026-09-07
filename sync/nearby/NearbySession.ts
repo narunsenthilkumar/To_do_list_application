@@ -63,14 +63,35 @@ export class NearbySession {
         const { NativeModules, NativeEventEmitter } = require('react-native');
         if (NativeModules.TaskoraBleModule) {
           const emitter = new NativeEventEmitter(NativeModules.TaskoraBleModule);
-          this.bleSubscription = emitter.addListener('onChunkReceived', (event: { senderDeviceId: string; data: string }) => {
-            try {
-              const chunk: NearbyTransferChunk = JSON.parse(event.data);
-              this.receivedChunks.push(chunk);
-            } catch (e) {
-              console.warn('[NearbySession] Error parsing GATT chunk:', e);
+          this.bleSubscription = emitter.addListener(
+            'onChunkReceived',
+            async (event: { senderDeviceId: string; data: string }) => {
+              try {
+                const chunk: NearbyTransferChunk = JSON.parse(event.data);
+                this.receivedChunks.push(chunk);
+
+                // Auto-reassemble when all chunks for the batch arrive on receiver
+                const batchChunks = this.receivedChunks.filter((c) => c.batchId === chunk.batchId);
+                if (batchChunks.length >= chunk.totalChunks) {
+                  const reassembled = BluetoothTransport.reassembleChunks(batchChunks, chunk.batchId);
+                  if (reassembled.success && reassembled.data) {
+                    const incomingPayload = JSON.parse(reassembled.data);
+                    await NearbyTransfer.processIncomingPayload(
+                      incomingPayload,
+                      event.senderDeviceId || 'Taskora Peer',
+                      Date.now()
+                    );
+
+                    // Reply back to sender with receiver's outgoing payload over GATT
+                    const { chunks: replyChunks } = await NearbyTransfer.prepareOutgoingPayload();
+                    await this.transport.sendChunks(replyChunks, event.senderDeviceId);
+                  }
+                }
+              } catch (e) {
+                console.warn('[NearbySession] Error handling GATT chunk on receiver:', e);
+              }
             }
-          });
+          );
         }
       } catch (e) {
         console.warn('[NearbySession] Error setting up GATT listeners:', e);
@@ -235,6 +256,11 @@ export class NearbySession {
       } else {
         const { payload, chunks } = await NearbyTransfer.prepareOutgoingPayload();
         await this.transport.sendChunks(chunks, this.targetDevice.deviceId);
+
+        // Wait briefly for peer response chunks to arrive over GATT if bidirectional
+        if (this.receivedChunks.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
 
         if (this.receivedChunks.length > 0) {
           const batchId = this.receivedChunks[0]?.batchId || payload.batchId;

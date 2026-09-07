@@ -3,6 +3,7 @@ import { FocusTimerPersistence } from './FocusTimerPersistence';
 import { FocusTimerNotification } from './FocusTimerNotification';
 import { FocusTimerLifecycle } from './FocusTimerLifecycle';
 import { FocusTimerRecovery } from './FocusTimerRecovery';
+import { FocusShieldService } from './FocusShieldService';
 import { Repository, getTodayDateString } from '../storage/repository';
 import { haptics } from '../haptics';
 
@@ -172,6 +173,12 @@ export class FocusTimerEngine {
       taskTitle
     );
 
+    // Activate Focus Shield if enabled
+    if (this.mode === 'work' && this.settings.shieldSettings?.enabled && this.session.endsAt) {
+      await FocusShieldService.syncShieldConfig(this.settings.shieldSettings);
+      await FocusShieldService.activateShield(this.session.endsAt);
+    }
+
     this.startTickInterval();
     this.emitEvent('state_change');
     haptics.medium();
@@ -205,6 +212,8 @@ export class FocusTimerEngine {
       taskTitle
     );
 
+    await FocusShieldService.deactivateShield();
+
     this.emitEvent('state_change');
     haptics.light();
   }
@@ -217,6 +226,7 @@ export class FocusTimerEngine {
     this.stopTickInterval();
     await FocusTimerPersistence.clearActiveSession();
     await FocusTimerNotification.clearAll();
+    await FocusShieldService.deactivateShield();
 
     this.emitEvent('state_change');
     haptics.light();
@@ -230,6 +240,7 @@ export class FocusTimerEngine {
     this.stopTickInterval();
     await FocusTimerPersistence.clearActiveSession();
     await FocusTimerNotification.clearAll();
+    await FocusShieldService.deactivateShield();
 
     if (this.mode === 'work') {
       this.mode = 'shortBreak';
@@ -282,6 +293,7 @@ export class FocusTimerEngine {
       this.session = null;
       await FocusTimerPersistence.clearActiveSession();
       await FocusTimerNotification.clearAll();
+      await FocusShieldService.deactivateShield();
 
       // Next mode
       if (newSessionCount % this.settings.longBreakInterval === 0) {

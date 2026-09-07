@@ -4,5 +4,6 @@
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   },
-  "cmake.sourceDirectory": "C:/Users/NARUN JS/OneDrive/Desktop/To_do_list_ application/node_modules/expo-modules-core/android"
+  "cmake.sourceDirectory": "C:/Users/NARUN JS/OneDrive/Desktop/To_do_list_ application/node_modules/expo-modules-core/android",
+  "java.compile.nullAnalysis.mode": "automatic"
 }

@@ -23,6 +23,28 @@ export interface FocusSession {
   mode: FocusModeType;
 }
 
+export interface FocusShieldSettings {
+  enabled: boolean;
+  strictMode: boolean;
+  dndEnabled: boolean;
+  emergencyUnlockAllowed: boolean;
+  blockedPackages: string[];
+}
+
+export const DEFAULT_FOCUS_SHIELD_SETTINGS: FocusShieldSettings = {
+  enabled: false,
+  strictMode: false,
+  dndEnabled: false,
+  emergencyUnlockAllowed: true,
+  blockedPackages: [
+    'com.instagram.android',
+    'com.google.android.youtube',
+    'com.facebook.katana',
+    'com.twitter.android',
+    'com.zhiliaoapp.musically',
+  ],
+};
+
 export interface PomodoroSettings {
   focusDuration: number;     // Minutes, default 25
   shortBreakDuration: number; // Minutes, default 5
@@ -30,6 +52,7 @@ export interface PomodoroSettings {
   longBreakInterval: number;  // Sessions count, default 4
   autoStartBreaks: boolean;
   autoStartFocus: boolean;
+  shieldSettings?: FocusShieldSettings;
 }
 
 export interface StreakStats {
@@ -38,4 +61,3 @@ export interface StreakStats {
   lastCompletedDate?: string;
   history: Record<string, number>; // YYYY-MM-DD -> completed count
 }
-

@@ -50,12 +50,21 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
       progress.value,
       [0, 1],
       [
-        isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)',
+        isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.12)',
+        colors.accent,
+      ]
+    );
+    const borderColor = interpolateColor(
+      progress.value,
+      [0, 1],
+      [
+        isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.10)',
         colors.accent,
       ]
     );
     return {
       backgroundColor,
+      borderColor,
     };
   });
 
@@ -74,6 +83,7 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
       accessibilityState={{ checked: value }}
       accessibilityLabel={accessibilityLabel}
       style={styles.pressArea}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Animated.View style={[styles.track, animatedTrackStyle]}>
         <Animated.View
@@ -91,7 +101,8 @@ export const AnimatedToggle: React.FC<AnimatedToggleProps> = ({
 
 const styles = StyleSheet.create({
   pressArea: {
-    padding: 2,
+    minHeight: 44,
+    minWidth: 54,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -99,12 +110,13 @@ const styles = StyleSheet.create({
     width: 52,
     height: 32,
     borderRadius: 16,
+    borderWidth: 1.5,
     padding: 2,
     justifyContent: 'center',
   },
   thumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
   },
 });

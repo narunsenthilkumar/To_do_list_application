@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ViewStyle, StyleProp, Insets } from 'react-native';
+import { Pressable, ViewStyle, StyleProp, Insets, AccessibilityRole, AccessibilityState } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,6 +18,8 @@ interface AnimatedPressableProps {
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
   accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
   hitSlop?: Insets | number;
 }
 
@@ -29,6 +31,8 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
   style,
   disabled = false,
   accessibilityLabel,
+  accessibilityRole,
+  accessibilityState,
   hitSlop,
 }) => {
   const scale = useSharedValue(1);
@@ -65,6 +69,8 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled}
       accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={accessibilityState}
       hitSlop={hitSlop}
     >
       <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>

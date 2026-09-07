@@ -103,7 +103,15 @@ export default function WidgetsScreen() {
 
             {/* Size Selector Tabs */}
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>WIDGET SIZE PREVIEW</Text>
-            <View style={[styles.segmentedWrapper, { backgroundColor: colors.secondaryBackground }]}>
+            <View
+              style={[
+                styles.segmentedWrapper,
+                {
+                  backgroundColor: colors.secondaryBackground,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                },
+              ]}
+            >
               {(['small', 'medium', 'large'] as WidgetSize[]).map((size) => {
                 const isSelected = selectedSize === size;
                 return (
@@ -116,15 +124,15 @@ export default function WidgetsScreen() {
                     }}
                     style={[
                       styles.segmentButton,
-                      isSelected && [styles.segmentButtonActive, { backgroundColor: colors.elevatedCard }],
+                      isSelected && [styles.segmentButtonActive, { backgroundColor: colors.accent }],
                     ]}
                   >
                     <Text
                       style={[
                         styles.segmentText,
                         {
-                          color: isSelected ? colors.textPrimary : colors.textSecondary,
-                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                          fontWeight: isSelected ? '800' : '600',
                           textTransform: 'capitalize',
                         },
                       ]}
@@ -232,23 +240,26 @@ const styles = StyleSheet.create({
   },
   segmentedWrapper: {
     flexDirection: 'row',
-    borderRadius: Radii.lg,
-    padding: 3,
+    borderRadius: Radii.pill,
+    padding: 4,
+    borderWidth: 1,
+    height: 50,
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
   segmentButton: {
     flex: 1,
-    paddingVertical: Spacing.sm,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radii.md,
+    borderRadius: Radii.pill,
   },
   segmentButtonActive: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 3,
   },
   segmentText: {
     ...TypographyScale.footnote,
@@ -263,8 +274,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: Radii.lg,
+    height: 50,
+    borderRadius: Radii.pill,
     marginTop: Spacing.md,
   },
   addWidgetBtnText: {

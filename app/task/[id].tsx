@@ -47,6 +47,7 @@ import { getBottomContentInset, MaterialLayers } from '../../theme/materials';
 import { haptics } from '../../services/haptics';
 
 import { TaskDestinationSelector } from '../../components/tasks/TaskDestinationSelector';
+import { CustomTimePicker } from '../../components/common/CustomTimePicker';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -266,7 +267,7 @@ export default function TaskDetailScreen() {
     }
   };
 
-  const bottomInset = Math.max(insets.bottom, 24) + 70;
+  const bottomInset = Math.max(insets.bottom, 24) + 84;
 
   return (
     <PrimarySurface>
@@ -275,10 +276,17 @@ export default function TaskDetailScreen() {
         <AnimatedPressable
           profile="smallControl"
           onPress={() => safeGoBack(router)}
-          style={styles.iconBtn}
+          style={[
+            styles.headerIconBtn,
+            {
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+            },
+          ]}
+          accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <ArrowLeft size={22} color={colors.textPrimary} />
+          <ArrowLeft size={20} color={colors.textPrimary} />
         </AnimatedPressable>
 
         <View style={styles.headerRightActions}>
@@ -286,10 +294,27 @@ export default function TaskDetailScreen() {
           <AnimatedPressable
             profile="smallControl"
             onPress={() => toggleTaskPin(task.id)}
-            style={[styles.iconBtn, task.isPinned && { backgroundColor: colors.accent + '20' }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: task.isPinned }}
+            accessibilityLabel="Pin task"
+            style={[
+              styles.headerIconBtn,
+              {
+                backgroundColor: task.isPinned
+                  ? colors.accent + '25'
+                  : isDark
+                  ? 'rgba(255, 255, 255, 0.06)'
+                  : 'rgba(0, 0, 0, 0.04)',
+                borderColor: task.isPinned
+                  ? colors.accent
+                  : isDark
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
           >
             <Pin
-              size={20}
+              size={18}
               color={task.isPinned ? colors.accent : colors.textTertiary}
               fill={task.isPinned ? colors.accent : 'transparent'}
             />
@@ -299,18 +324,47 @@ export default function TaskDetailScreen() {
           <AnimatedPressable
             profile="smallControl"
             onPress={() => toggleTaskFavorite(task.id)}
-            style={[styles.iconBtn, task.isFavorite && { backgroundColor: '#FFCC0025' }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: task.isFavorite }}
+            accessibilityLabel="Favorite task"
+            style={[
+              styles.headerIconBtn,
+              {
+                backgroundColor: task.isFavorite
+                  ? '#FFCC0025'
+                  : isDark
+                  ? 'rgba(255, 255, 255, 0.06)'
+                  : 'rgba(0, 0, 0, 0.04)',
+                borderColor: task.isFavorite
+                  ? '#FFCC00'
+                  : isDark
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
           >
             <Star
-              size={20}
+              size={18}
               color={task.isFavorite ? '#FFCC00' : colors.textTertiary}
               fill={task.isFavorite ? '#FFCC00' : 'transparent'}
             />
           </AnimatedPressable>
 
           {/* Delete */}
-          <AnimatedPressable profile="destructiveAction" onPress={handleDeleteTask} style={styles.iconBtn}>
-            <Trash2 size={20} color={colors.error} />
+          <AnimatedPressable
+            profile="destructiveAction"
+            onPress={handleDeleteTask}
+            accessibilityRole="button"
+            accessibilityLabel="Delete task"
+            style={[
+              styles.headerIconBtn,
+              {
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.18)',
+              },
+            ]}
+          >
+            <Trash2 size={18} color={colors.error} />
           </AnimatedPressable>
         </View>
       </View>
@@ -360,24 +414,41 @@ export default function TaskDetailScreen() {
         {/* Date & Time Selector Card */}
         <ElevatedCard style={styles.cardSection}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Due Date & Time</Text>
-          
-          <View style={styles.chipRow}>
+
+          {/* Primary Date Options: Today | Tomorrow | Pick Date */}
+          <View style={styles.dateSegmentedRow}>
             {/* Today */}
             <AnimatedPressable
               profile="smallControl"
+              accessibilityRole="button"
+              accessibilityState={{ selected: dueDate === getTodayDateString() }}
+              accessibilityLabel="Due today"
               onPress={() => {
                 haptics.selection();
                 setDueDate(getTodayDateString());
               }}
               style={[
-                styles.selectorChip,
-                { backgroundColor: dueDate === getTodayDateString() ? colors.accent : colors.secondaryBackground },
+                styles.dateSegmentBtn,
+                {
+                  backgroundColor:
+                    dueDate === getTodayDateString() ? colors.accent : colors.secondaryBackground,
+                  borderColor:
+                    dueDate === getTodayDateString()
+                      ? colors.accent
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.06)',
+                },
               ]}
             >
               <Text
                 style={[
-                  styles.chipText,
-                  { color: dueDate === getTodayDateString() ? '#FFFFFF' : colors.textSecondary },
+                  styles.dateSegmentText,
+                  {
+                    color:
+                      dueDate === getTodayDateString() ? '#FFFFFF' : colors.textSecondary,
+                    fontWeight: dueDate === getTodayDateString() ? '800' : '600',
+                  },
                 ]}
               >
                 Today
@@ -387,75 +458,155 @@ export default function TaskDetailScreen() {
             {/* Tomorrow */}
             <AnimatedPressable
               profile="smallControl"
+              accessibilityRole="button"
+              accessibilityState={{ selected: dueDate === getTomorrowDateString() }}
+              accessibilityLabel="Due tomorrow"
               onPress={() => {
                 haptics.selection();
                 setDueDate(getTomorrowDateString());
               }}
               style={[
-                styles.selectorChip,
-                { backgroundColor: dueDate === getTomorrowDateString() ? colors.accent : colors.secondaryBackground },
+                styles.dateSegmentBtn,
+                {
+                  backgroundColor:
+                    dueDate === getTomorrowDateString() ? colors.accent : colors.secondaryBackground,
+                  borderColor:
+                    dueDate === getTomorrowDateString()
+                      ? colors.accent
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.06)',
+                },
               ]}
             >
               <Text
                 style={[
-                  styles.chipText,
-                  { color: dueDate === getTomorrowDateString() ? '#FFFFFF' : colors.textSecondary },
+                  styles.dateSegmentText,
+                  {
+                    color:
+                      dueDate === getTomorrowDateString() ? '#FFFFFF' : colors.textSecondary,
+                    fontWeight: dueDate === getTomorrowDateString() ? '800' : '600',
+                  },
                 ]}
               >
                 Tomorrow
               </Text>
             </AnimatedPressable>
 
-            {/* Custom Date */}
+            {/* Pick Date */}
             <AnimatedPressable
               profile="smallControl"
+              accessibilityRole="button"
+              accessibilityState={{
+                selected:
+                  Boolean(dueDate) &&
+                  dueDate !== getTodayDateString() &&
+                  dueDate !== getTomorrowDateString(),
+              }}
+              accessibilityLabel="Pick custom due date"
               onPress={() => {
                 haptics.selection();
                 setDatePickerVisible(true);
               }}
               style={[
-                styles.selectorChip,
+                styles.dateSegmentBtn,
                 {
                   backgroundColor:
-                    dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                    dueDate &&
+                    dueDate !== getTodayDateString() &&
+                    dueDate !== getTomorrowDateString()
                       ? colors.accent
                       : colors.secondaryBackground,
+                  borderColor:
+                    dueDate &&
+                    dueDate !== getTodayDateString() &&
+                    dueDate !== getTomorrowDateString()
+                      ? colors.accent
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.06)',
                 },
               ]}
             >
-              <Calendar size={14} color={dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString() ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 4 }} />
+              <Calendar
+                size={14}
+                color={
+                  dueDate &&
+                  dueDate !== getTodayDateString() &&
+                  dueDate !== getTomorrowDateString()
+                    ? '#FFFFFF'
+                    : colors.textSecondary
+                }
+                style={{ marginRight: 5 }}
+              />
               <Text
+                numberOfLines={1}
                 style={[
-                  styles.chipText,
+                  styles.dateSegmentText,
                   {
                     color:
-                      dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                      dueDate &&
+                      dueDate !== getTodayDateString() &&
+                      dueDate !== getTomorrowDateString()
                         ? '#FFFFFF'
                         : colors.textSecondary,
+                    fontWeight:
+                      dueDate &&
+                      dueDate !== getTodayDateString() &&
+                      dueDate !== getTomorrowDateString()
+                        ? '800'
+                        : '600',
                   },
                 ]}
               >
-                {dueDate && dueDate !== getTodayDateString() && dueDate !== getTomorrowDateString()
+                {dueDate &&
+                dueDate !== getTodayDateString() &&
+                dueDate !== getTomorrowDateString()
                   ? dueDate
                   : 'Pick Date'}
               </Text>
             </AnimatedPressable>
+          </View>
 
-            {/* No Date */}
+          {/* No Date as separate clean control */}
+          <View style={styles.noDateRow}>
             <AnimatedPressable
               profile="smallControl"
+              accessibilityRole="button"
+              accessibilityState={{ selected: !dueDate }}
+              accessibilityLabel="No due date"
               onPress={() => {
                 haptics.selection();
                 setDueDate(undefined);
                 setDueTime(undefined);
               }}
               style={[
-                styles.selectorChip,
-                { backgroundColor: !dueDate ? colors.accent : colors.secondaryBackground },
+                styles.noDateBtn,
+                {
+                  backgroundColor: !dueDate
+                    ? isDark
+                      ? 'rgba(255, 255, 255, 0.12)'
+                      : 'rgba(0, 0, 0, 0.08)'
+                    : 'transparent',
+                  borderColor: !dueDate
+                    ? colors.accent
+                    : isDark
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(0, 0, 0, 0.06)',
+                },
               ]}
             >
-              <Text style={[styles.chipText, { color: !dueDate ? '#FFFFFF' : colors.textSecondary }]}>
-                No Date
+              <X size={13} color={!dueDate ? colors.accent : colors.textTertiary} style={{ marginRight: 4 }} />
+              <Text
+                style={[
+                  styles.noDateText,
+                  {
+                    color: !dueDate ? colors.textPrimary : colors.textTertiary,
+                    fontWeight: !dueDate ? '700' : '500',
+                  },
+                ]}
+              >
+                No Due Date
               </Text>
             </AnimatedPressable>
           </View>
@@ -548,59 +699,85 @@ export default function TaskDetailScreen() {
 
         {/* Reminders Card */}
         <ElevatedCard style={styles.cardSection}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
             <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>Reminder</Text>
             {reminder === 'custom' && (
               <AnimatedPressable
                 profile="smallControl"
+                accessibilityRole="button"
+                accessibilityLabel="Edit custom reminder time"
                 onPress={() => {
                   haptics.selection();
                   setCustomReminderModalVisible(true);
                 }}
-                style={{ paddingVertical: 2, paddingHorizontal: 8, borderRadius: Radii.sm, backgroundColor: colors.accent + '20' }}
+                style={{ paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radii.pill, backgroundColor: colors.accent + '20', borderWidth: 1, borderColor: colors.accent }}
               >
-                <Text style={{ ...TypographyScale.caption2, color: colors.accent, fontWeight: '700' }}>Edit Time</Text>
+                <Text style={{ ...TypographyScale.caption2, color: colors.accent, fontWeight: '800' }}>Edit Time</Text>
               </AnimatedPressable>
             )}
           </View>
 
-          <View style={styles.chipRow}>
-            {(['none', 'at_time', '5m_before', '15m_before', '30m_before', '1h_before', '1d_before', 'custom'] as ReminderOption[]).map((r) => (
-              <AnimatedPressable
-                key={r}
-                profile="smallControl"
-                onPress={() => {
-                  haptics.selection();
-                  setReminder(r);
-                  if (r === 'custom') {
-                    setCustomReminderModalVisible(true);
-                  }
-                }}
-                style={[
-                  styles.selectorChip,
-                  { backgroundColor: reminder === r ? colors.accent : colors.secondaryBackground },
-                ]}
-              >
-                <Text
+          <View style={styles.reminderGrid}>
+            {[
+              { id: 'none', label: 'None' },
+              { id: 'at_time', label: 'At Time' },
+              { id: '5m_before', label: '5m Before' },
+              { id: '15m_before', label: '15m Before' },
+              { id: '30m_before', label: '30m Before' },
+              { id: '1h_before', label: '1h Before' },
+              { id: '1d_before', label: '1d Before' },
+              { id: 'custom', label: 'Custom...' },
+            ].map(({ id: rId, label }) => {
+              const isSelected = reminder === rId;
+              return (
+                <AnimatedPressable
+                  key={rId}
+                  profile="smallControl"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Reminder ${label}`}
+                  onPress={() => {
+                    haptics.selection();
+                    setReminder(rId as ReminderOption);
+                    if (rId === 'custom') {
+                      setCustomReminderModalVisible(true);
+                    }
+                  }}
                   style={[
-                    styles.chipText,
+                    styles.reminderGridBtn,
                     {
-                      color: reminder === r ? '#FFFFFF' : colors.textSecondary,
-                      textTransform: 'capitalize',
+                      backgroundColor: isSelected ? colors.accent : colors.secondaryBackground,
+                      borderColor: isSelected
+                        ? colors.accent
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'rgba(0, 0, 0, 0.06)',
                     },
+                    isSelected && Shadows.subtle,
                   ]}
                 >
-                  {r.replace('_', ' ')}
-                </Text>
-              </AnimatedPressable>
-            ))}
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.reminderGridText,
+                      {
+                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                        fontWeight: isSelected ? '800' : '600',
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
 
           {/* Canonical Trigger Summary */}
           {reminder !== 'none' && (
-            <View style={{ marginTop: Spacing.sm, padding: Spacing.sm, borderRadius: Radii.md, backgroundColor: colors.secondaryBackground, flexDirection: 'row', alignItems: 'center' }}>
-              <Bell size={14} color={colors.accent} style={{ marginRight: 6 }} />
-              <Text style={{ ...TypographyScale.caption1, color: colors.textSecondary, flex: 1 }}>
+            <View style={{ marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radii.lg, backgroundColor: colors.secondaryBackground, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }}>
+              <Bell size={16} color={colors.accent} style={{ marginRight: 8 }} />
+              <Text style={{ ...TypographyScale.caption1, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
                 {reminder === 'custom'
                   ? `Custom Alert: ${customRemDateInput} at ${customRemTimeInput} (${reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'})`
                   : `Preset Alert: ${reminder.replace('_', ' ')} (${reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'})`}
@@ -612,32 +789,54 @@ export default function TaskDetailScreen() {
         {/* Priority Selector */}
         <ElevatedCard style={styles.cardSection}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Priority</Text>
-          <View style={styles.chipRow}>
-            {(['none', 'low', 'medium', 'high', 'urgent'] as PriorityLevel[]).map((p) => (
-              <AnimatedPressable
-                key={p}
-                profile="smallControl"
-                onPress={() => {
-                  haptics.selection();
-                  setPriority(p);
-                }}
-                style={[
-                  styles.selectorChip,
-                  {
-                    backgroundColor: priority === p ? colors.accent : colors.secondaryBackground,
-                  },
-                ]}
-              >
-                <Text
+          <View
+            style={[
+              styles.prioritySegmentedTrack,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
+          >
+            {[
+              { id: 'none', label: 'None', color: colors.accent },
+              { id: 'low', label: 'Low', color: '#38BDF8' },
+              { id: 'medium', label: 'Medium', color: '#FBBF24' },
+              { id: 'high', label: 'High', color: '#FB923C' },
+              { id: 'urgent', label: 'Urgent', color: '#F87171' },
+            ].map(({ id: pId, label, color: pColor }) => {
+              const isSelected = priority === pId;
+              return (
+                <AnimatedPressable
+                  key={pId}
+                  profile="smallControl"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Priority ${label}`}
+                  onPress={() => {
+                    haptics.selection();
+                    setPriority(pId as PriorityLevel);
+                  }}
                   style={[
-                    styles.chipText,
-                    { color: priority === p ? '#FFFFFF' : colors.textSecondary, textTransform: 'capitalize' },
+                    styles.prioritySegmentBtn,
+                    isSelected && [styles.prioritySegmentBtnActive, { backgroundColor: pColor }],
                   ]}
                 >
-                  {p}
-                </Text>
-              </AnimatedPressable>
-            ))}
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.prioritySegmentText,
+                      {
+                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                        fontWeight: isSelected ? '800' : '600',
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         </ElevatedCard>
 
@@ -667,8 +866,8 @@ export default function TaskDetailScreen() {
               <AnimatedPressable profile="smallControl" onPress={() => toggleSubtask(task.id, sub.id)}>
                 <Check
                   size={18}
-                  color={sub.completed ? colors.success : colors.textTertiary}
-                  style={{ marginRight: 8 }}
+                  color={sub.completed ? colors.accent : colors.textTertiary}
+                  style={{ marginRight: Spacing.sm }}
                 />
               </AnimatedPressable>
               <Text
@@ -682,12 +881,8 @@ export default function TaskDetailScreen() {
               >
                 {sub.title}
               </Text>
-              <AnimatedPressable
-                profile="smallControl"
-                onPress={() => deleteSubtask(task.id, sub.id)}
-                style={{ padding: 4 }}
-              >
-                <Trash2 size={14} color={colors.textTertiary} />
+              <AnimatedPressable profile="destructiveAction" onPress={() => deleteSubtask(task.id, sub.id)}>
+                <Trash2 size={16} color={colors.textTertiary} />
               </AnimatedPressable>
             </View>
           ))}
@@ -696,46 +891,44 @@ export default function TaskDetailScreen() {
             <TextInput
               value={newSubtaskTitle}
               onChangeText={setNewSubtaskTitle}
-              placeholder="Add a subtask..."
+              placeholder="Add subtask..."
               placeholderTextColor={colors.textTertiary}
-              style={[styles.subtaskInput, { color: colors.textPrimary, backgroundColor: colors.secondaryBackground }]}
               onSubmitEditing={handleAddSubtask}
+              style={[styles.subtaskInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
             />
             <AnimatedPressable
               profile="smallControl"
               onPress={handleAddSubtask}
               style={[styles.addBtn, { backgroundColor: colors.accent }]}
             >
-              <Plus size={16} color="#FFFFFF" />
+              <Plus size={18} color="#FFFFFF" />
             </AnimatedPressable>
           </View>
         </ElevatedCard>
 
-        {/* Notes Area */}
+        {/* Notes Section */}
         <ElevatedCard style={styles.cardSection}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>Notes</Text>
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Add detailed notes..."
+            placeholder="Add detailed notes here..."
             placeholderTextColor={colors.textTertiary}
-            style={[styles.notesInput, { color: colors.textPrimary }]}
             multiline
+            numberOfLines={4}
+            style={[styles.notesInput, { color: colors.textPrimary }]}
           />
         </ElevatedCard>
 
-        {/* Activity Audit Log */}
+        {/* Audit Log / History Details (Requirement 47) */}
         {activityLogs.length > 0 && (
           <ElevatedCard style={styles.cardSection}>
             <View style={styles.activityHeader}>
               <History size={16} color={colors.textTertiary} style={{ marginRight: 6 }} />
-              <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>
-                Activity History
-              </Text>
+              <Text style={[styles.sectionTitle, { color: colors.textTertiary, marginBottom: 0 }]}>Activity</Text>
             </View>
-
-            {activityLogs.map((log) => (
-              <View key={log.id} style={styles.logItem}>
+            {activityLogs.map((log, idx) => (
+              <View key={idx} style={styles.logItem}>
                 <Text style={[styles.logText, { color: colors.textSecondary }]}>
                   {log.action} · {formatClockTime(new Date(log.timestamp), timeFormat).formatted}
                 </Text>
@@ -750,14 +943,16 @@ export default function TaskDetailScreen() {
         style={[
           styles.floatingBottomBar,
           {
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.92)',
-            paddingBottom: Math.max(insets.bottom, 12),
+            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+            paddingBottom: Math.max(insets.bottom, 16),
           },
         ]}
       >
         <AnimatedPressable
           profile="primaryButton"
           onPress={handleSaveAndDone}
+          accessibilityRole="button"
+          accessibilityLabel="Save and Done"
           style={[styles.doneBtn, { backgroundColor: colors.accent }, Shadows.floating]}
         >
           <CheckCircle2 size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -769,31 +964,38 @@ export default function TaskDetailScreen() {
       <Modal visible={timePickerVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <ElevatedCard style={styles.pickerModalCard}>
-            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Enter Due Time (HH:mm)</Text>
-            <TextInput
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Select Due Time</Text>
+            <CustomTimePicker
               value={customTimeInput}
-              onChangeText={setCustomTimeInput}
-              placeholder="17:00"
-              placeholderTextColor={colors.textTertiary}
-              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+              onChange={setCustomTimeInput}
             />
             <View style={styles.modalBtnRow}>
               <AnimatedPressable
                 profile="smallControl"
                 onPress={() => setTimePickerVisible(false)}
-                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel time selection"
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: colors.secondaryBackground,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+                <Text style={[styles.modalCancelBtnText, { color: colors.textPrimary }]}>Cancel</Text>
               </AnimatedPressable>
               <AnimatedPressable
-                profile="smallControl"
+                profile="primaryButton"
                 onPress={() => {
                   setDueTime(customTimeInput.trim());
                   setTimePickerVisible(false);
                 }}
-                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel="Set time"
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.accent }]}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Set Time</Text>
+                <Text style={styles.modalConfirmBtnText}>Set Time</Text>
               </AnimatedPressable>
             </View>
           </ElevatedCard>
@@ -816,19 +1018,29 @@ export default function TaskDetailScreen() {
               <AnimatedPressable
                 profile="smallControl"
                 onPress={() => setDatePickerVisible(false)}
-                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel date selection"
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: colors.secondaryBackground,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+                <Text style={[styles.modalCancelBtnText, { color: colors.textPrimary }]}>Cancel</Text>
               </AnimatedPressable>
               <AnimatedPressable
-                profile="smallControl"
+                profile="primaryButton"
                 onPress={() => {
                   setDueDate(customDateInput.trim());
                   setDatePickerVisible(false);
                 }}
-                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel="Set date"
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.accent }]}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Set Date</Text>
+                <Text style={styles.modalConfirmBtnText}>Set Date</Text>
               </AnimatedPressable>
             </View>
           </ElevatedCard>
@@ -853,25 +1065,30 @@ export default function TaskDetailScreen() {
               style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary, marginBottom: Spacing.sm }]}
             />
 
-            <Text style={{ ...TypographyScale.caption2, color: colors.textTertiary, marginBottom: 2 }}>Reminder Time (HH:mm, 24-hr)</Text>
-            <TextInput
+            <Text style={{ ...TypographyScale.caption2, color: colors.textTertiary, marginBottom: 2 }}>Reminder Time</Text>
+            <CustomTimePicker
               value={customRemTimeInput}
-              onChangeText={setCustomRemTimeInput}
-              placeholder="17:30"
-              placeholderTextColor={colors.textTertiary}
-              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+              onChange={setCustomRemTimeInput}
             />
 
             <View style={styles.modalBtnRow}>
               <AnimatedPressable
                 profile="smallControl"
                 onPress={() => setCustomReminderModalVisible(false)}
-                style={[styles.modalActionBtn, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel custom reminder"
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: colors.secondaryBackground,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>Cancel</Text>
+                <Text style={[styles.modalCancelBtnText, { color: colors.textPrimary }]}>Cancel</Text>
               </AnimatedPressable>
               <AnimatedPressable
-                profile="smallControl"
+                profile="primaryButton"
                 onPress={() => {
                   const tz = reminderConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
                   const res = ReminderScheduler.calculateCustomTrigger(customRemDateInput.trim(), customRemTimeInput.trim(), tz);
@@ -894,9 +1111,11 @@ export default function TaskDetailScreen() {
                     Alert.alert('Invalid Time', 'Please enter a valid future date (YYYY-MM-DD) and time (HH:mm).');
                   }
                 }}
-                style={[styles.modalActionBtn, { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm alert"
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.accent }]}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Confirm Alert</Text>
+                <Text style={styles.modalConfirmBtnText}>Confirm Alert</Text>
               </AnimatedPressable>
             </View>
           </ElevatedCard>
@@ -918,7 +1137,15 @@ const styles = StyleSheet.create({
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  headerIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   iconBtn: {
     padding: Spacing.xs,
@@ -999,6 +1226,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: Spacing.xs,
   },
+  dateSegmentedRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs + 2,
+    marginTop: 2,
+  },
+  dateSegmentBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    paddingHorizontal: Spacing.xs,
+  },
+  dateSegmentText: {
+    ...TypographyScale.footnote,
+    fontSize: 13,
+  },
+  noDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginTop: Spacing.xs + 2,
+  },
+  noDateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    height: 36,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+  },
+  noDateText: {
+    ...TypographyScale.caption1,
+    fontSize: 12,
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1033,6 +1296,50 @@ const styles = StyleSheet.create({
   deferBtnText: {
     ...TypographyScale.caption2,
     fontWeight: '600',
+  },
+  reminderGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs + 2,
+  },
+  reminderGridBtn: {
+    width: '23%',
+    minWidth: 70,
+    height: 44,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  reminderGridText: {
+    ...TypographyScale.caption2,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  prioritySegmentedTrack: {
+    flexDirection: 'row',
+    height: 46,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    padding: 3,
+    gap: 4,
+  },
+  prioritySegmentBtn: {
+    flex: 1,
+    height: '100%',
+    borderRadius: Radii.sm + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prioritySegmentBtnActive: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  prioritySegmentText: {
+    ...TypographyScale.caption1,
+    fontSize: 12,
   },
   subtaskRow: {
     flexDirection: 'row',
@@ -1112,46 +1419,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
+    height: 54,
+    minHeight: 54,
     borderRadius: Radii.pill,
   },
   doneBtnText: {
     ...TypographyScale.headline,
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,
   },
   pickerModalCard: {
     width: '100%',
-    maxWidth: 360,
-    padding: Spacing.lg,
+    maxWidth: 380,
+    padding: Spacing.xl,
     borderRadius: Radii.xl,
   },
   modalHeading: {
-    ...TypographyScale.headline,
-    fontWeight: '700',
+    ...TypographyScale.title3,
+    fontWeight: '800',
     marginBottom: Spacing.md,
   },
   modalTextInput: {
     ...TypographyScale.body,
     padding: Spacing.md,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     marginBottom: Spacing.md,
   },
   modalBtnRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+  },
+  modalCancelBtnText: {
+    ...TypographyScale.body,
+    fontWeight: '700',
+  },
+  modalConfirmBtn: {
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.lg,
+  },
+  modalConfirmBtnText: {
+    ...TypographyScale.body,
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   modalActionBtn: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: Radii.pill,
   },
 });

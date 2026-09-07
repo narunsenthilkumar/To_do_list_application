@@ -23,6 +23,7 @@ import {
   Clock,
   Globe,
   Calendar,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimarySurface } from '../../components/common/PrimarySurface';
@@ -177,6 +178,19 @@ export default function FocusScreen() {
             </View>
 
             <View style={styles.headerRightRow}>
+              {/* Focus Shield Button */}
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  haptics.light();
+                  router.push('/settings/focus-shield' as any);
+                }}
+                style={[styles.screensaverBtn, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <ShieldAlert size={16} color={colors.accent} style={{ marginRight: 4 }} />
+                <Text style={[styles.screensaverBtnText, { color: colors.textPrimary }]}>Shield</Text>
+              </AnimatedPressable>
+
               {/* Screensaver / Ambient Clock CTA */}
               <AnimatedPressable
                 profile="smallControl"

@@ -248,10 +248,19 @@ export const BackgroundEditor: React.FC = () => {
                 key={st.id}
                 profile="card"
                 onPress={() => handleSelectStyle(st.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${st.name} background style`}
                 style={[
                   styles.styleCard,
                   {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    backgroundColor: isSelected
+                      ? isDark
+                        ? colors.accent + '22'
+                        : colors.accent + '15'
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.04)'
+                      : 'rgba(0, 0, 0, 0.02)',
                     borderColor: isSelected
                       ? colors.accent
                       : isDark
@@ -266,28 +275,39 @@ export const BackgroundEditor: React.FC = () => {
                   <View
                     style={[
                       styles.iconCircle,
-                      { backgroundColor: isSelected ? colors.accent + '20' : colors.secondaryBackground },
+                      {
+                        backgroundColor: isSelected
+                          ? colors.accent + '30'
+                          : isDark
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(0, 0, 0, 0.05)',
+                      },
                     ]}
                   >
                     <IconComp size={18} color={isSelected ? colors.accent : colors.textSecondary} />
                   </View>
-                  {isSelected && (
+                  {isSelected ? (
                     <View style={[styles.selectedCheck, { backgroundColor: colors.accent }]}>
-                      <Check size={12} color="#FFFFFF" />
+                      <Check size={12} color="#FFFFFF" strokeWidth={3} />
                     </View>
+                  ) : (
+                    <View style={styles.unselectedPlaceholder} />
                   )}
                 </View>
-                <Text
-                  style={[
-                    styles.styleCardTitle,
-                    { color: isSelected ? colors.accent : colors.textPrimary },
-                  ]}
-                >
-                  {st.name}
-                </Text>
-                <Text style={[styles.styleCardSub, { color: colors.textTertiary }]}>
-                  {st.subtitle}
-                </Text>
+                <View>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.styleCardTitle,
+                      { color: isSelected ? colors.accent : colors.textPrimary },
+                    ]}
+                  >
+                    {st.name}
+                  </Text>
+                  <Text numberOfLines={1} style={[styles.styleCardSub, { color: colors.textTertiary }]}>
+                    {st.subtitle}
+                  </Text>
+                </View>
               </AnimatedPressable>
             );
           })}
@@ -305,23 +325,30 @@ export const BackgroundEditor: React.FC = () => {
           {PRESET_PALETTES.map((colorHex) => {
             const isSelected = backgroundSettings.accentColor.toLowerCase() === colorHex.toLowerCase();
             return (
-              <Pressable
+              <AnimatedPressable
                 key={colorHex}
+                profile="smallControl"
                 accessibilityRole="button"
                 accessibilityLabel={`Select color ${colorHex}`}
+                accessibilityState={{ selected: isSelected }}
                 onPress={() => handleSelectColor(colorHex)}
                 style={[
-                  styles.paletteCircle,
-                  {
-                    backgroundColor: colorHex,
-                    borderColor: isSelected ? (isDark ? '#FFFFFF' : '#000000') : 'transparent',
-                    borderWidth: isSelected ? 3 : 0,
-                    transform: [{ scale: isSelected ? 1.15 : 1 }],
+                  styles.paletteTouchTarget,
+                  isSelected && {
+                    borderColor: isDark ? '#FFFFFF' : colors.accent,
+                    borderWidth: 2.5,
                   },
                 ]}
               >
-                {isSelected && <Check size={14} color="#FFFFFF" />}
-              </Pressable>
+                <View
+                  style={[
+                    styles.paletteInnerCircle,
+                    { backgroundColor: colorHex },
+                  ]}
+                >
+                  {isSelected && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
+                </View>
+              </AnimatedPressable>
             );
           })}
         </ScrollView>
@@ -337,37 +364,44 @@ export const BackgroundEditor: React.FC = () => {
             <Text style={[styles.sliderLabel, { color: colors.textPrimary }]}>Intensity</Text>
             <Text style={[styles.sliderValue, { color: colors.accent }]}>{backgroundSettings.intensity}%</Text>
           </View>
-          <View style={styles.stepperRow}>
-            {[30, 50, 70, 90].map((step) => (
-              <AnimatedPressable
-                key={step}
-                profile="smallControl"
-                onPress={() => updateBackgroundSettings({ intensity: step })}
-                style={[
-                  styles.stepPill,
-                  {
-                    backgroundColor:
-                      backgroundSettings.intensity === step
-                        ? colors.accent
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.05)',
-                  },
-                ]}
-              >
-                <Text
+          <View
+            style={[
+              styles.segmentedTrack,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
+          >
+            {[30, 50, 70, 90].map((step) => {
+              const isSelected = backgroundSettings.intensity === step;
+              return (
+                <AnimatedPressable
+                  key={step}
+                  profile="smallControl"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Intensity ${step}%`}
+                  onPress={() => updateBackgroundSettings({ intensity: step })}
                   style={[
-                    styles.stepPillText,
-                    {
-                      color:
-                        backgroundSettings.intensity === step ? '#FFFFFF' : colors.textSecondary,
-                    },
+                    styles.segmentBtn,
+                    isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
                   ]}
                 >
-                  {step}%
-                </Text>
-              </AnimatedPressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      {
+                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                        fontWeight: isSelected ? '800' : '600',
+                      },
+                    ]}
+                  >
+                    {step}%
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         </View>
 
@@ -377,37 +411,44 @@ export const BackgroundEditor: React.FC = () => {
             <Text style={[styles.sliderLabel, { color: colors.textPrimary }]}>Atmospheric Blur</Text>
             <Text style={[styles.sliderValue, { color: colors.accent }]}>{backgroundSettings.blur}%</Text>
           </View>
-          <View style={styles.stepperRow}>
-            {[20, 40, 60, 80].map((step) => (
-              <AnimatedPressable
-                key={step}
-                profile="smallControl"
-                onPress={() => updateBackgroundSettings({ blur: step })}
-                style={[
-                  styles.stepPill,
-                  {
-                    backgroundColor:
-                      backgroundSettings.blur === step
-                        ? colors.accent
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.05)',
-                  },
-                ]}
-              >
-                <Text
+          <View
+            style={[
+              styles.segmentedTrack,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
+          >
+            {[20, 40, 60, 80].map((step) => {
+              const isSelected = backgroundSettings.blur === step;
+              return (
+                <AnimatedPressable
+                  key={step}
+                  profile="smallControl"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Blur ${step}%`}
+                  onPress={() => updateBackgroundSettings({ blur: step })}
                   style={[
-                    styles.stepPillText,
-                    {
-                      color:
-                        backgroundSettings.blur === step ? '#FFFFFF' : colors.textSecondary,
-                    },
+                    styles.segmentBtn,
+                    isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
                   ]}
                 >
-                  {step}%
-                </Text>
-              </AnimatedPressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      {
+                        color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                        fontWeight: isSelected ? '800' : '600',
+                      },
+                    ]}
+                  >
+                    {step}%
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         </View>
 
@@ -418,7 +459,7 @@ export const BackgroundEditor: React.FC = () => {
 
         <View style={[styles.sliderRowCard, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)' }]}>
           <View style={styles.toggleRow}>
-            <View>
+            <View style={{ flex: 1, paddingRight: Spacing.sm }}>
               <Text style={[styles.sliderLabel, { color: colors.textPrimary }]}>Live Motion</Text>
               <Text style={[styles.subToggleNote, { color: colors.textTertiary }]}>
                 Smooth ambient background drift
@@ -427,6 +468,7 @@ export const BackgroundEditor: React.FC = () => {
             <AnimatedToggle
               value={backgroundSettings.animationEnabled}
               onValueChange={(val) => updateBackgroundSettings({ animationEnabled: val })}
+              accessibilityLabel="Toggle Live Motion animation"
             />
           </View>
 
@@ -435,42 +477,54 @@ export const BackgroundEditor: React.FC = () => {
               <View style={styles.sliderInfoRow}>
                 <Text style={[styles.subSliderLabel, { color: colors.textSecondary }]}>Motion Speed</Text>
                 <Text style={[styles.sliderValue, { color: colors.accent }]}>
-                  {backgroundSettings.motionSpeed}%
+                  {backgroundSettings.motionSpeed <= 25 ? 'Slow' : backgroundSettings.motionSpeed <= 50 ? 'Medium' : backgroundSettings.motionSpeed <= 75 ? 'Fast' : 'Dynamic'}
                 </Text>
               </View>
-              <View style={styles.stepperRow}>
-                {[25, 50, 75, 100].map((spd) => (
-                  <AnimatedPressable
-                    key={spd}
-                    profile="smallControl"
-                    onPress={() => updateBackgroundSettings({ motionSpeed: spd })}
-                    style={[
-                      styles.stepPill,
-                      {
-                        backgroundColor:
-                          backgroundSettings.motionSpeed === spd
-                            ? colors.accent
-                            : isDark
-                            ? 'rgba(255, 255, 255, 0.08)'
-                            : 'rgba(0, 0, 0, 0.05)',
-                      },
-                    ]}
-                  >
-                    <Text
+              <View
+                style={[
+                  styles.segmentedTrack,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  },
+                ]}
+              >
+                {[
+                  { spd: 25, label: 'Slow' },
+                  { spd: 50, label: 'Medium' },
+                  { spd: 75, label: 'Fast' },
+                  { spd: 100, label: 'Dynamic' },
+                ].map(({ spd, label }) => {
+                  const isSelected = backgroundSettings.motionSpeed === spd;
+                  return (
+                    <AnimatedPressable
+                      key={spd}
+                      profile="smallControl"
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={`Motion Speed ${label}`}
+                      onPress={() => updateBackgroundSettings({ motionSpeed: spd })}
                       style={[
-                        styles.stepPillText,
-                        {
-                          color:
-                            backgroundSettings.motionSpeed === spd
-                              ? '#FFFFFF'
-                              : colors.textSecondary,
-                        },
+                        styles.segmentBtn,
+                        isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
                       ]}
                     >
-                      {spd === 25 ? 'Slow' : spd === 50 ? 'Medium' : spd === 75 ? 'Fast' : 'Dynamic'}
-                    </Text>
-                  </AnimatedPressable>
-                ))}
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.segmentBtnText,
+                          {
+                            color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                            fontWeight: isSelected ? '800' : '600',
+                            fontSize: 12.5,
+                          },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </AnimatedPressable>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -573,14 +627,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+    justifyContent: 'space-between',
   },
   styleCard: {
-    flexBasis: '31%',
-    flexGrow: 1,
-    minWidth: 100,
+    width: '48%',
+    minWidth: 130,
     padding: Spacing.md,
     borderRadius: Radii.lg,
-    minHeight: 88,
+    minHeight: 96,
     justifyContent: 'space-between',
   },
   styleCardHeader: {
@@ -590,37 +644,53 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedCheck: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  unselectedPlaceholder: {
+    width: 22,
+    height: 22,
   },
   styleCardTitle: {
     ...TypographyScale.footnote,
     fontWeight: '700',
+    fontSize: 13.5,
   },
   styleCardSub: {
     ...TypographyScale.caption2,
-    marginTop: 1,
+    marginTop: 2,
+    fontSize: 11,
   },
   paletteScroll: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.xs,
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
-  paletteCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  paletteTouchTarget: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 3,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  paletteInnerCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -628,46 +698,58 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   sliderInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   sliderLabel: {
     ...TypographyScale.subhead,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   subSliderLabel: {
     ...TypographyScale.caption1,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   sliderValue: {
     ...TypographyScale.footnote,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  stepperRow: {
+  segmentedTrack: {
     flexDirection: 'row',
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
+    height: 46,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    padding: 3,
+    gap: 3,
+    alignItems: 'center',
   },
-  stepPill: {
+  segmentBtn: {
     flex: 1,
-    height: 34,
-    borderRadius: Radii.pill,
+    height: '100%',
+    borderRadius: Radii.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepPillText: {
-    ...TypographyScale.caption1,
-    fontWeight: '600',
+  segmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  segmentBtnText: {
+    ...TypographyScale.footnote,
+    letterSpacing: 0.3,
   },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 48,
   },
   subToggleNote: {
     ...TypographyScale.caption2,

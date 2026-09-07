@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, Download, Upload, Trash2, Info, BarChart2, Sparkles, Mic, Calendar, RotateCcw, ShieldCheck, Tag, Clock, Lightbulb, RefreshCw, Camera, User, LayoutGrid, Check, Volume2, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Bell, Download, Upload, Trash2, Info, BarChart2, Sparkles, Mic, Calendar, RotateCcw, ShieldCheck, ShieldAlert, Tag, Clock, Lightbulb, RefreshCw, Camera, User, LayoutGrid, Check, Volume2, AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { PrimarySurface } from '../components/common/PrimarySurface';
@@ -179,11 +179,23 @@ export default function SettingsScreen() {
         <View style={styles.innerContentWrapper}>
           {/* Header */}
           <View style={styles.header}>
-            <AnimatedPressable profile="smallControl" onPress={() => safeGoBack(router)} style={styles.backBtn} accessibilityLabel="Go back">
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => safeGoBack(router)}
+              style={[
+                styles.backBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
               <ArrowLeft size={22} color={colors.textPrimary} />
             </AnimatedPressable>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
-            <View style={{ width: 22 }} />
+            <View style={{ width: 44 }} />
           </View>
 
           <ScrollView
@@ -354,13 +366,23 @@ export default function SettingsScreen() {
             </ElevatedCard>
 
             {/* Productivity & Stats */}
-            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>PRODUCTIVITY</Text>
+            <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>PRODUCTIVITY & FOCUS</Text>
             <ElevatedCard style={styles.cardSection}>
               <SettingsRow
                 icon={<BarChart2 size={20} color={colors.accent} />}
                 title="Productivity Statistics & Streaks"
                 showChevron
                 onPress={() => router.push('/statistics')}
+              />
+
+              <View style={[styles.divider, { backgroundColor: colors.subtleBorder }]} />
+
+              <SettingsRow
+                icon={<ShieldAlert size={20} color={colors.accent} />}
+                title="Focus Shield & Distraction Blocker"
+                subtitle="Temporarily block distracting apps during focus"
+                showChevron
+                onPress={() => router.push('/settings/focus-shield' as any)}
               />
             </ElevatedCard>
 
@@ -784,10 +806,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
   },
   backBtn: {
-    padding: Spacing.xs,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   headerTitle: {
     ...TypographyScale.headline,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
@@ -796,18 +824,21 @@ const styles = StyleSheet.create({
   sectionHeader: {
     ...TypographyScale.caption1,
     fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xs,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.sm,
     marginLeft: Spacing.xs,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   cardSection: {
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.xl,
   },
   privacyCard: {
     padding: Spacing.lg,
     marginVertical: Spacing.sm,
-    borderRadius: Radii.lg,
+    borderRadius: Radii.xl,
   },
   privacyHeader: {
     flexDirection: 'row',
@@ -834,7 +865,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    marginVertical: Spacing.xs,
+    marginVertical: Spacing.sm,
   },
   aboutBrandTitle: {
     ...TypographyScale.title3,
@@ -851,7 +882,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   incompleteSection: {
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   incompleteHeaderRow: {
     flexDirection: 'row',
@@ -867,16 +898,17 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   indicationOptionsList: {
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
   indicationOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
+    minHeight: 50,
+    paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
-    borderRadius: Radii.md,
-    borderWidth: 1,
+    borderRadius: Radii.lg,
+    borderWidth: 1.5,
   },
   indicationRadioWrap: {
     flexDirection: 'row',

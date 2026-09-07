@@ -10,9 +10,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20%7C%20Web%20%7C%20iOS-0A84FF?style=flat-square" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Framework-React%20Native%20%2F%20Expo-5E5CE6?style=flat-square" alt="Framework" />
-  <img src="https://img.shields.io/badge/Desktop-Electron-47A248?style=flat-square" alt="Desktop" />
+  <img src="https://img.shields.io/badge/Framework-React%20Native%200.86%20%2F%20Expo%2057-5E5CE6?style=flat-square" alt="Framework" />
+  <img src="https://img.shields.io/badge/Desktop-Electron%2030-47A248?style=flat-square" alt="Desktop" />
   <img src="https://img.shields.io/badge/Architecture-Offline--First%20Zero--Cloud-30D158?style=flat-square" alt="Architecture" />
+  <img src="https://img.shields.io/badge/Sync-Nearby%20BLE%20%2F%20GATT-FF9500?style=flat-square" alt="BLE Sync" />
+  <img src="https://img.shields.io/badge/CI%2FCD-Codemagic-F38020?style=flat-square" alt="Codemagic" />
   <img src="https://img.shields.io/badge/Language-TypeScript-3178C6?style=flat-square" alt="TypeScript" />
 </p>
 
@@ -20,74 +22,100 @@
 
 ## Overview
 
-**Taskora** is an ultra-fast, privacy-first personal productivity and task management application. Built with an Apple-inspired visual hierarchy, spatial glassmorphism, and haptic feedback, Taskora delivers an intuitive experience across mobile and desktop without relying on third-party cloud servers or tracking.
+**Taskora** is an ultra-fast, privacy-first personal productivity and task management application. Built with an Apple-inspired visual hierarchy, spatial glassmorphism, native Android system extensions, and haptic feedback, Taskora delivers a unified, high-performance experience across mobile, desktop, and web—completely independent of third-party cloud servers, telemetry, or recurring subscriptions.
 
 ---
 
 ## Key Features
 
 ### 1. Task & Project Management
-- **Smart Task Creation**: Natural language parsing for dates and times (e.g. *"Meeting tomorrow at 3 PM"*).
-- **Organization**: Nested subtasks, custom colored tags, projects, priorities (Urgent, High, Medium, Low, None).
-- **Task Actions**: Pin, Favorite, Defer (Tomorrow, Next Week, Someday), Complete, Delete with swipe gestures and haptics.
-- **Views**: Today, Inbox, Upcoming Calendar, Focus Mode, Projects, Search & Filter, Statistics.
+- **Natural Language Parsing**: Intelligent NLP engine extracts titles, dates, times, and recurrence rules from everyday speech or text (e.g., *"Team standup every Monday at 9:30 AM"*).
+- **Organization**: Hierarchical subtasks, custom-colored tags, project grouping, and 5-tier priority matrix (Urgent, High, Medium, Low, None).
+- **Interactive Gestures**: Swipe to complete, pin, favorite, defer (Tomorrow, Next Week, Someday), and delete with fluid haptic spring responses.
+- **Smart Views**: Today, Inbox, Upcoming Calendar, Focus Mode, Projects, Search & Filter, and Productivity Statistics.
 
 ### 2. Apple-Inspired Glassmorphic Design System
-- **Spatial Glassmorphism**: Translucent layered cards, blurred sheets, frosted rims, and depth hierarchies.
-- **Spring Animations**: 60fps physics-driven transitions using `react-native-reanimated`.
-- **Dynamic Theming**: True Black Dark Mode, Crisp Light Mode, and System auto-adaptation.
+- **Spatial Glassmorphism**: Translucent layered cards, blurred sheets, frosted rims, and depth hierarchies with true black dark mode and crisp light mode.
+- **Physics-Based Spring Transitions**: 60fps animations powered by `react-native-reanimated` v4 and `react-native-gesture-handler`.
+- **Accessible Touch Targets**: Strict 44pt+ minimum touch targets, high-contrast typography (`TypographyScale`), and WCAG AAA compliance.
 - **Haptic Feedback**: Custom haptic patterns across Android, Windows, and Web.
 
-### 3. Voice Tasks & Speech Recognition (100% On-Device)
+### 3. Focus Mode & Ambient Screensaver
+- **Pomodoro & Custom Timers**: Customizable work/break intervals linked directly to active tasks with automatic cycle tracking.
+- **Apple Minimalist Analog Clock**: 60-tick dial with bold quarter markers, proportional hands, and continuous 60fps second sweep with zero timer drift.
+- **Digital Clock & Fullscreen Screensaver**: Minimalist typography with animated 12h/24h transitions and burn-in prevention.
+- **Ambient Soundscapes**: Built-in white noise, rain, forest, and binaural audio generated locally.
+
+### 4. Taskora Focus Shield & Digital Wellbeing *(New)*
+- **Native Android App Blocker**: Leverages an Android Accessibility Service (`TaskoraFocusAccessibilityService`) to monitor foreground windows and intercept distracting apps (Instagram, YouTube, TikTok, Reddit, X/Twitter, Chrome, etc.) during active focus sessions.
+- **System Do Not Disturb (DND) Integration**: Interacts with Android's Notification Policy Access to automatically enforce strict DND during sessions and restore original settings upon completion.
+- **Emergency Unlock**: 5-minute temporary unlock grace period when access is urgently needed, backed by cooldown timers.
+- **Distraction Management UI**: Dedicated settings panel (`app/settings/focus-shield.tsx`) to search, multiselect, select all, or deselect all installed apps.
+
+### 5. Adaptive Notification Engine & Dynamic Island Experience *(New)*
+- **Smart Adaptive Presentation**: `NotificationExperienceManager` evaluates device capabilities and dispatches notifications to the optimal Android surface:
+  - **`ONGOING_ISLAND_PILL`**: Persistent, sticky status bar / notification shade pill displaying real-time focus countdown, task context, and quick pause/resume controls.
+  - **`HEADS_UP_BANNER`**: High-priority alert banner with sound and vibration for time-sensitive task deadlines.
+  - **`LOCKSCREEN_CARD` & `STANDARD_SHADE`**: Clean, non-intrusive reminder alerts.
+- **Exact Alarms & Reboot Persistence**: Built on Android's native `AlarmManager` (`setExactAndAllowWhileIdle`) and `TaskoraBootReceiver`, ensuring reminders fire accurately even through Doze mode and across device reboots.
+- **Dedicated Notification Channels**: High-priority channels (`taskora_alarms`, `taskora_reminders`, `taskora-focus`).
+
+### 6. Apple-Grade Custom Time Picker & Quick Date Selectors *(New)*
+- **Bespoke `CustomTimePicker`**: Intuitive numeric input component supporting instant toggle between 12-Hour (`AM`/`PM`) and 24-Hour formats, automatic boundary validation, zero-padded formatting, and tactile segment buttons.
+- **Streamlined Date Scheduling**: Fast segmented selectors (`Today`, `Tomorrow`, `Pick Date`, `No Due Date`) in both Task Details and Quick Add modals.
+- **Reminder Intervals Grid**: One-tap reminder presets (`5m before`, `15m before`, `30m before`, `1h before`, `1d before`, `Custom Time...`).
+
+### 7. Interactive Android Home Screen Widgets *(New)*
+- **Multiple Widget Sizes**: Native Android AppWidget implementations for Small, Medium, and Large layouts, as well as specialized Agenda, Focus Timer, Progress Ring, and Quick Capture widgets.
+- **In-App Live Preview & Customization**: Preview and configure home screen widgets directly within Taskora Settings (`app/settings/widgets.tsx`).
+- **Background Synchronization**: Synchronizes active task lists, completion metrics, and focus states with native Android `AppWidgetManager`.
+
+### 8. Voice Tasks & Speech Recognition (100% On-Device)
 - **Windows**: Native SAPI / Speech Recognition `.NET` worker integrated via Electron IPC.
-- **Android**: On-device speech recognition via native engine.
+- **Android**: On-device speech recognition powered by native Android speech engines.
 - **Web**: Local Web Speech API integration.
-- **Privacy Guaranteed**: Zero cloud audio upload, no API keys, and offline capability.
+- **Privacy Guaranteed**: Zero cloud audio transmission, no external API keys required, and full offline capability.
 
-### 4. Focus Mode & Ambient Screensaver
-- **Pomodoro & Stopwatch**: Customizable focus sessions with task linking.
-- **Apple Minimalist Analog Clock**: 60 ticks with bold quarter accents, proportional hands, and continuous 60fps second sweep with zero timer drift.
-- **Digital Clock**: Minimalist typography with animated 12h/24h transitions.
-- **Ambient Soundscapes**: Built-in white noise, rain, forest, and binaural audio.
+### 9. Peer-to-Peer Nearby BLE Sync & Device Pairing
+- **Zero-Cloud Bluetooth LE Sync**: Custom native Android BLE module (`TaskoraBleModule`) enabling direct, air-gapped device-to-device communication via GATT servers and clients.
+- **Bidirectional Chunk Transport**: Automatic fragmentation, transmission, reassembly, and acknowledgement of CRDT mutation payloads over GATT characteristics.
+- **Cryptographic Pairing**: 5-minute dynamic 6-digit verification code with SHA-256 payload integrity checksums.
+- **Deterministic Conflict Resolution (LWW)**: Lamport logical clocks with union-based subtask and tag preservation.
+- **Tombstone Protection & Revocation**: Persistent deletion markers prevent resurrection of removed tasks; device revocation permanently blocks unauthenticated sync.
+- **Air-Gapped Transfer**: Manual JSON mutation packet and QR code transfer for completely offline environments.
 
-### 5. Global Time Format & Spacious Background Editor
-- **Global Time Preferences**: Universal toggle between 12-Hour (`5:42 PM`) and 24-Hour (`17:42`) formats.
-- **Background Customization**: 6 visual ambience presets (*Aurora, Liquid, Mesh, Ambient, Minimal, Dynamic*) with continuous sliders for intensity, blur, speed, and real-time live preview.
-
-### 6. Offline-First Synchronization & Device Management
-- **Cryptographic Device Pairing**: 5-minute time-based 6-digit verification code with SHA-256 integrity checksums.
-- **Deterministic Conflict Resolution (LWW)**: Lamport logical clocks with subtask and tag union preservation.
-- **Tombstone Protection**: Deletion markers prevent resurrection of deleted tasks from older snapshots.
-- **Persistent Device Revocation**: Disconnecting a device revokes its authorization permanently until re-paired.
-- **Manual Mutation Transfer**: Air-gapped JSON mutation packet export and import.
-
-### 7. Backup & Privacy
-- **JSON Backup & Restore**: Complete atomic snapshot export and schema-migrated restore.
-- **CSV Export**: Clean spreadsheet export for reporting and analysis.
-- **100% Privacy**: All tasks and credentials remain on your device in secure local storage.
+### 10. Backup, Privacy & Security
+- **Atomic JSON Backup & Restore**: Full database snapshot export with schema-versioned migrations.
+- **Clean CSV Export**: Structured export suitable for spreadsheets, reporting, and external analysis.
+- **100% Privacy by Design**: All data stays on the local device inside secure hardware-backed storage (`@react-native-async-storage/async-storage`).
 
 ---
 
 ## Supported Platforms
 
-| Platform | Runtime / Distribution | Status |
-| :--- | :--- | :---: |
-| **Windows** | Electron Standalone (`.exe` / Installer) | Production Ready |
-| **Android** | Expo EAS APK / AAB | Production Ready |
-| **Web** | Progressive Web App / Static Bundle (`dist/`) | Production Ready |
-| **iOS** | React Native / Expo Go | Supported |
+| Platform | Runtime / Distribution | Status | Native Features |
+| :--- | :--- | :---: | :--- |
+| **Android** | Native APK / Google Play AAB | **Production Ready** | Focus Shield (Accessibility), DND Policy, Home Widgets, BLE Sync, Exact Alarms |
+| **Windows** | Electron Standalone (`.exe` / Installer) | **Production Ready** | SAPI Speech Recognition, Native Tray, Hardware Acceleration |
+| **Web** | Progressive Web App / Static Bundle (`dist/`) | **Production Ready** | Responsive Glassmorphism, Web Speech API, LocalStorage |
+| **iOS** | React Native / Expo Prebuild (IPA) | **Supported** | iOS Haptics, BlurView, Background Scheduling |
 
 ---
 
 ## Tech Stack
 
-- **Core**: React 19, React Native 0.86, TypeScript
-- **Navigation & Routing**: Expo Router v57 (File-based routing)
-- **Animations**: React Native Reanimated v4, React Native Gesture Handler
-- **Desktop Runtime**: Electron 30, Electron Forge
-- **Graphics & Icons**: React Native SVG, Lucide Icons
+- **Framework**: React 19, React Native 0.86.2, Expo SDK 57 (New Architecture / Fabric & TurboModules enabled)
+- **Routing**: Expo Router v57 (File-based navigation)
+- **Animations**: React Native Reanimated v4.5, React Native Gesture Handler
+- **Desktop Runtime**: Electron 30, Electron Forge, electron-builder
+- **Native Android (Kotlin)**:
+  - `TaskoraFocusAccessibilityService` (App Blocker & Window Monitoring)
+  - `TaskoraBleModule` (Bluetooth Low Energy GATT Transport)
+  - `TaskoraAlarmModule` & `TaskoraAlarmReceiver` (Exact Alarms & Boot Restoration)
+  - `TaskoraWidgetProvider` (Native Android Home Screen Widgets)
+- **Styling & Icons**: Lucide Icons, React Native SVG, Custom Apple Design Tokens (`TypographyScale`, `Spacing`, `Radii`, `Shadows`)
 - **Storage**: `@react-native-async-storage/async-storage`
-- **Speech Engine**: Windows SAPI / Android Native / Web Speech API
+- **CI/CD**: Codemagic CI/CD pipelines (`codemagic.yaml`)
 
 ---
 
@@ -95,34 +123,50 @@
 
 ```
 To_do_list_ application/
-├── app/                        # Expo Router file-based pages
-│   ├── (tabs)/                 # Bottom tab screens (Today, Inbox, Calendar, Focus, Projects)
-│   ├── auth/                   # Local authentication & session setup
-│   ├── modal/                  # Quick Add & creation sheets
-│   ├── settings/               # Settings, Backups, Privacy & Diagnostics
-│   ├── sync/                   # Cross-Device Sync & Device Management
-│   └── task/[id].tsx           # Task detail & editing view
-├── components/                 # Reusable UI components
-│   ├── clock/                  # Apple AnalogClock, DigitalClock, Screensaver
-│   ├── common/                 # AnimatedPressable, GlassSurface, ElevatedCard
-│   ├── navigation/             # FloatingTabBar, SyncStatusPill
-│   ├── settings/               # TimeFormatSelector, BackgroundEditor
-│   └── tasks/                  # TaskRow, SwipeableTaskRow, TaskActionSheet
-├── services/                   # Native platform & hardware services
-│   ├── clipboard/              # Multi-platform clipboard bridge
-│   ├── haptics/                # iOS, Android, and Web haptics
-│   ├── storage/                # Repository & persistence layer
-│   └── voice/                  # Speech-to-text pipeline (Windows, Android, Web)
-├── sync/                       # Offline-first synchronization engine
-│   ├── ConflictResolver.ts     # Deterministic Last-Write-Wins logic
-│   ├── DeviceIdService.ts      # Persistent installation device identity
-│   ├── DevicePairing.ts        # 6-digit code, SHA-256 checksum & revocation
-│   ├── LamportClock.ts         # Distributed logical timestamps
-│   ├── SyncEngine.ts           # Mutation processor & queue dispatcher
-│   └── TombstoneService.ts     # Deletion markers preventing resurrection
-├── electron/                   # Windows desktop main & preload scripts
-├── theme/                      # Apple design tokens, materials & typography
-└── utils/                      # Time formatting, date parsing, sanitizers
+├── .vscode/                     # Editor configurations
+├── android/                     # Android native project (New Architecture / Kotlin)
+│   └── app/src/main/java/com/taskora/app/
+│       ├── focus/               # TaskoraFocusAccessibilityService & FocusShieldManager
+│       ├── TaskoraBleModule.kt  # Native BLE GATT server & client
+│       ├── TaskoraAlarmModule.kt# Exact AlarmManager bridge
+│       └── *WidgetProvider.kt  # Small, Medium, Large & Agenda AppWidgets
+├── app/                         # Expo Router file-based pages
+│   ├── (tabs)/                  # Bottom tab screens (Today, Inbox, Calendar, Focus, Projects)
+│   ├── auth/                    # Local passcode & biometric setup
+│   ├── modal/                   # Quick Add, Time Picker, & Focus Shield overlays
+│   ├── settings/                # Settings, Focus Shield, Widgets, Backup, & Sync
+│   │   ├── focus-shield.tsx     # Focus Shield app management & DND permissions
+│   │   └── widgets.tsx          # Home screen widget configuration & preview
+│   ├── sync/                    # Nearby BLE Pairing & Cross-Device Management
+│   └── task/[id].tsx            # Redesigned task detail, segmented date & reminder grid
+├── components/                  # Reusable UI components
+│   ├── clock/                   # Apple AnalogClock, DigitalClock, Screensaver
+│   ├── common/                  # CustomTimePicker, AnimatedPressable, GlassSurface, ElevatedCard
+│   ├── navigation/              # FloatingTabBar, SyncStatusPill
+│   ├── settings/                # BackgroundEditor, TimeFormatSelector, AnimatedToggle
+│   └── tasks/                   # TaskRow, SwipeableTaskRow, TaskActionSheet
+├── electron/                    # Windows desktop main & preload scripts
+├── models/                      # TypeScript domain models (Task, Focus, Sync, Widgets)
+├── scripts/                     # Local Android build, diagnostic & environment scripts
+│   ├── android-doctor.js        # Environment diagnostic checker
+│   ├── android-build.js         # Automated Gradle build executor
+│   └── android-env.js           # Dynamic SDK, JDK, & local.properties locator
+├── services/                    # Platform & hardware services
+│   ├── focus/                   # FocusShieldService & FocusTimerEngine
+│   ├── notifications/           # NotificationExperienceManager, ReminderScheduler, Channels
+│   ├── permissions/             # Unified PermissionManager (Bluetooth, Alarms, Notifications)
+│   ├── storage/                 # Atomic repository & persistence layer
+│   ├── voice/                   # Speech-to-text pipeline (Windows, Android, Web)
+│   └── widgets/                 # WidgetDataService (Native AppWidget sync)
+├── sync/                        # Offline-first synchronization engine
+│   ├── nearby/                  # BluetoothTransport, NearbyDiscovery, NearbySession
+│   ├── ConflictResolver.ts      # Deterministic Last-Write-Wins logic
+│   ├── DevicePairing.ts         # 6-digit verification code & SHA-256 validation
+│   └── SyncEngine.ts            # Mutation queue & dispatcher
+├── theme/                       # Apple design tokens, materials & typography scales
+├── codemagic.yaml               # Multi-platform CI/CD configuration
+├── ANDROID_BUILD.md             # In-depth Android production build guide
+└── package.json                 # Project dependencies & scripts
 ```
 
 ---
@@ -130,15 +174,18 @@ To_do_list_ application/
 ## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v18+ recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- [Expo CLI](https://docs.expo.dev/) (`npm install -g eas-cli`)
+
+- [Node.js](https://nodejs.org/) (v20.x or v24.x LTS recommended)
+- [OpenJDK 21](https://learn.microsoft.com/en-us/java/openjdk/download) (Required for Android local builds)
+- [Android SDK Platform 35 / 36](https://developer.android.com/studio) with NDK `27.1.12297006` and CMake
+- [npm](https://www.npmjs.com/) (v10+)
 
 ### Installation
+
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/taskora.git
-cd taskora
+git clone https://github.com/narunsenthilkumar/To_do_list_application.git
+cd To_do_list_application
 
 # Install dependencies
 npm install
@@ -147,13 +194,13 @@ npm install
 ### Running in Development
 
 ```bash
-# Start Expo development server (Mobile / Web)
+# Start Expo development server
 npm start
 
 # Run Web in browser
 npm run web
 
-# Run Android emulator / device
+# Run Android emulator / physical device (via Expo)
 npm run android
 
 # Run Windows Desktop (Electron Dev mode)
@@ -162,45 +209,84 @@ npm run electron:dev
 
 ---
 
-## Building for Production
+## Android Local Build & Diagnostics
+
+Taskora includes automated scripts for environment validation and single-command native builds without needing to launch Android Studio:
+
+### 1. Environment Doctor (`android:doctor`)
+Run the diagnostic script to verify your JDK 21, Android SDK, NDK, CMake, and ADB paths:
+```bash
+npm run android:doctor
+```
+
+### 2. Build Standalone Production Release APK
+```bash
+npm run android:apk
+# or
+npm run android:release
+```
+The script automatically configures `local.properties`, resolves paths, runs Gradle `assembleRelease` with Hermes and New Architecture enabled, and outputs the final APK to:
+```text
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+### 3. Build Debug APK
+```bash
+npm run android:debug
+```
+
+### 4. Clean Android Build Cache
+```bash
+npm run android:clean
+```
+
+> For complete physical device deployment steps via USB debugging or direct transfer, consult [ANDROID_BUILD.md](ANDROID_BUILD.md).
+
+---
+
+## Building for Other Platforms
 
 ### 1. Web Production Build
 ```bash
 npm run build:web
 ```
-Output static bundle will be generated in `dist/`.
+Generates an optimized static bundle in `dist/`.
 
 ### 2. Windows Standalone Application (Electron)
 ```bash
 # Package portable executable (.exe)
-npm run electron:package
+npm run electron:start
 
-# Or generate Windows Squirrel installer
-npm run electron:make
+# Or create standalone distribution bundle
+npm run electron:dist
 ```
-Executable will be placed in `out/Taskora-win32-x64/taskora.exe`.
 
-### 3. Android APK / AAB (EAS Build)
-```bash
-# Build Android APK / Production Bundle
-eas build --platform android --profile production
-```
+---
+
+## CI/CD Automation (Codemagic)
+
+Taskora is pre-configured with continuous integration and continuous deployment via [`codemagic.yaml`](codemagic.yaml):
+
+1. **`android-release`**: Triggered on pushes/tags to `main`. Automatically runs `expo prebuild`, configures Android SDK, and compiles signed production APK & Google Play AAB artifacts on `mac_mini_m2` runners.
+2. **`android-debug`**: Runs on pull requests for rapid testing APK generation.
+3. **`ios-release`**: Generates native iOS project via `expo prebuild`, installs CocoaPods, and archives the iOS IPA.
+4. **`web-export`**: Exports the production Single Page Web Application bundle.
 
 ---
 
 ## Quality Assurance & Verification
 
-Taskora includes automated test suites covering device deduplication, pairing validation, checksum verification, deterministic LWW conflict resolution, tombstone protection, and device revocation:
+Taskora includes comprehensive automated test suites and compiler checks:
 
 ```bash
 # Run TypeScript compilation check
 npx tsc --noEmit
 
-# Export web production bundle
-npm run build:web
+# Run Android Environment Doctor
+npm run android:doctor
 
-# Package desktop build
-npm run electron:package
+# Export and validate web bundle
+npm run build:web
 ```
 
 ---

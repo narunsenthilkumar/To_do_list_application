@@ -43,6 +43,7 @@ import * as Haptics from 'expo-haptics';
 import { useTaskora, useTheme } from '../../store/useTaskora';
 import { safeHaptics } from '../../utils/haptics';
 import { safeGoBack } from '../../utils/navigation';
+import { CustomTimePicker } from '../../components/common/CustomTimePicker';
 import { formatTaskTime } from '../../utils/timeFormatter';
 import {
   NaturalLanguageParser,
@@ -96,6 +97,9 @@ export default function QuickAddModal() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceSpokenText, setVoiceSpokenText] = useState('');
+
+  const [timePickerModalVisible, setTimePickerModalVisible] = useState(false);
+  const [customTimeInput, setCustomTimeInput] = useState('17:00');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -599,6 +603,82 @@ export default function QuickAddModal() {
             })}
           </View>
 
+          {/* Due Time Selector Row */}
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Due Time</Text>
+          <View style={styles.chipsRow}>
+            {[
+              { label: '09:00', val: '09:00' },
+              { label: '12:00', val: '12:00' },
+              { label: '17:00', val: '17:00' },
+              { label: '20:00', val: '20:00' },
+            ].map((t) => {
+              const isSelected = dueTime === t.val;
+              return (
+                <AnimatedPressable
+                  key={t.val}
+                  profile="smallControl"
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setDueTime(t.val);
+                  }}
+                  style={[
+                    styles.chip,
+                    { backgroundColor: isSelected ? colors.accent : colors.secondaryBackground },
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                    {formatTaskTime(t.val, timeFormat)}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
+
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCustomTimeInput(dueTime || '17:00');
+                setTimePickerModalVisible(true);
+              }}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor:
+                    dueTime && !['09:00', '12:00', '17:00', '20:00'].includes(dueTime)
+                      ? colors.accent
+                      : colors.secondaryBackground,
+                },
+              ]}
+            >
+              <Clock size={13} color={dueTime && !['09:00', '12:00', '17:00', '20:00'].includes(dueTime) ? '#FFFFFF' : colors.textSecondary} style={{ marginRight: 4 }} />
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color:
+                      dueTime && !['09:00', '12:00', '17:00', '20:00'].includes(dueTime)
+                        ? '#FFFFFF'
+                        : colors.textSecondary,
+                  },
+                ]}
+              >
+                {dueTime && !['09:00', '12:00', '17:00', '20:00'].includes(dueTime)
+                  ? formatTaskTime(dueTime, timeFormat)
+                  : 'Custom...'}
+              </Text>
+            </AnimatedPressable>
+
+            {dueTime && (
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setDueTime(undefined)}
+                style={[styles.chip, { backgroundColor: colors.secondaryBackground }]}
+              >
+                <X size={13} color={colors.textTertiary} />
+              </AnimatedPressable>
+            )}
+          </View>
+
           {/* Priority Row */}
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Priority</Text>
           <View style={styles.chipsRow}>
@@ -725,6 +805,49 @@ export default function QuickAddModal() {
         </View>
 
       </Animated.View>
+
+      {/* Custom Time Picker Modal */}
+      <Modal visible={timePickerModalVisible} transparent animationType="fade">
+        <View style={styles.voiceOverlay}>
+          <BlurView intensity={30} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View style={[styles.pickerModalCard, { backgroundColor: colors.elevatedCard }, Shadows.floating]}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Select Due Time</Text>
+            <CustomTimePicker
+              value={customTimeInput}
+              onChange={setCustomTimeInput}
+            />
+            <View style={styles.modalBtnRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setTimePickerModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel time selection"
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: colors.secondaryBackground,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
+              >
+                <Text style={[styles.modalCancelBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                profile="primaryButton"
+                onPress={() => {
+                  setDueTime(customTimeInput.trim());
+                  setTimePickerModalVisible(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Set time"
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={styles.modalConfirmBtnText}>Set Time</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Voice Listening Modal */}
       <Modal visible={isListening} transparent animationType="fade">
@@ -887,11 +1010,64 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     marginBottom: Spacing.sm,
   },
+  pickerModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    padding: Spacing.xl,
+    borderRadius: Radii.xl,
+  },
+  modalHeading: {
+    ...TypographyScale.title3,
+    fontWeight: '800',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+  },
+  modalCancelBtnText: {
+    ...TypographyScale.body,
+    fontWeight: '700',
+  },
+  modalConfirmBtn: {
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.lg,
+  },
+  modalConfirmBtnText: {
+    ...TypographyScale.body,
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  modalActionBtn: {
+    paddingHorizontal: Spacing.xl,
+    height: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.lg,
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    height: 40,
+    minHeight: 40,
     borderRadius: Radii.pill,
   },
   priorityChip: {
@@ -1046,9 +1222,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   voiceCancelBtn: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xl,
+    height: 46,
+    minHeight: 46,
     borderRadius: Radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   voiceCancelText: {
     ...TypographyScale.footnote,
@@ -1060,9 +1239,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   voiceDoneBtn: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xl,
+    height: 46,
+    minHeight: 46,
     borderRadius: Radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   voiceDoneText: {
     ...TypographyScale.footnote,
