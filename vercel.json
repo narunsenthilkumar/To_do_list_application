@@ -26,43 +26,7 @@
   ],
   "rewrites": [
     {
-      "source": "/task/:id",
-      "destination": "/task/[id].html"
-    },
-    {
-      "source": "/project/:id",
-      "destination": "/project/[id].html"
-    },
-    {
-      "source": "/today",
-      "destination": "/today.html"
-    },
-    {
-      "source": "/sync",
-      "destination": "/sync/index.html"
-    },
-    {
-      "source": "/modal/quick-add",
-      "destination": "/modal/quick-add.html"
-    },
-    {
-      "source": "/settings/backup",
-      "destination": "/settings/backup.html"
-    },
-    {
-      "source": "/settings/privacy-diagnostics",
-      "destination": "/settings/privacy-diagnostics.html"
-    },
-    {
-      "source": "/auth/login",
-      "destination": "/auth/login.html"
-    },
-    {
-      "source": "/auth/register",
-      "destination": "/auth/register.html"
-    },
-    {
-      "source": "/((?!_expo|assets|favicon\\.ico|.*\\..*).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
