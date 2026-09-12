@@ -1,9 +1,11 @@
 import { ImageSourcePropType } from 'react-native';
 
 /**
- * Taskora Centralized Brand Assets Configuration
+ * KIVENTA Centralized Brand Assets Configuration
  * Single source of truth for all brand logos, app icons, and marks.
  */
+export const APP_NAME = 'KIVENTA';
+
 export const BrandAssets = {
   // Primary App Logo (1024x1024 master icon)
   logo: require('../assets/branding/taskora-logo.png') as ImageSourcePropType,
@@ -22,10 +24,11 @@ export const BrandAssets = {
 };
 
 export const BrandInfo = {
-  name: 'Taskora',
-  tagline: 'Apple-inspired Local-First Smart Task Management',
+  name: 'KIVENTA',
+  tagline: 'Turn Intent Into Action',
   subtitle: 'Premium Productivity',
   version: '1.0.0',
   build: 'Phase 3 Production Build',
-  copyright: 'Copyright © 2026 Taskora',
+  copyright: 'Copyright © 2026 KIVENTA',
 };
+

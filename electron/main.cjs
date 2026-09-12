@@ -196,7 +196,7 @@ async function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    title: 'Taskora',
+    title: 'KIVENTA',
     backgroundColor: '#0F172A',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
@@ -420,7 +420,7 @@ ipcMain.handle('clipboard:readText', async () => {
 ipcMain.handle('dialog:saveFile', async (event, { defaultPath, content, filters }) => {
   try {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-      title: 'Save File — Taskora',
+      title: 'Save File — KIVENTA',
       defaultPath: defaultPath || 'Taskora-Backup.json',
       filters: filters || [
         { name: 'JSON Backup (*.json)', extensions: ['json'] },
@@ -444,10 +444,10 @@ ipcMain.handle('dialog:saveFile', async (event, { defaultPath, content, filters 
 ipcMain.handle('dialog:openFile', async (event, { filters }) => {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select Backup File — Taskora',
+      title: 'Select Backup File — KIVENTA',
       properties: ['openFile'],
       filters: filters || [
-        { name: 'Taskora Backup (*.json)', extensions: ['json'] },
+        { name: 'KIVENTA Backup (*.json)', extensions: ['json'] },
         { name: 'All Files (*.*)', extensions: ['*'] },
       ],
     });
@@ -470,7 +470,7 @@ ipcMain.handle('notification:show', async (event, { title, body }) => {
     if (Notification.isSupported()) {
       const notifIcon = getAssetPath('assets/branding/taskora-icon.png');
       new Notification({
-        title: title || 'Taskora',
+        title: title || 'KIVENTA',
         body: body || '',
         icon: fs.existsSync(notifIcon) ? notifIcon : undefined,
       }).show();

@@ -48,6 +48,7 @@ import { haptics } from '../../services/haptics';
 
 import { TaskDestinationSelector } from '../../components/tasks/TaskDestinationSelector';
 import { CustomTimePicker } from '../../components/common/CustomTimePicker';
+import { CustomDatePicker } from '../../components/common/CustomDatePicker';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -819,7 +820,19 @@ export default function TaskDetailScreen() {
                   }}
                   style={[
                     styles.prioritySegmentBtn,
-                    isSelected && [styles.prioritySegmentBtnActive, { backgroundColor: pColor }],
+                    {
+                      backgroundColor: isSelected
+                        ? pColor
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: isSelected
+                        ? 'transparent'
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'rgba(0, 0, 0, 0.06)',
+                    },
+                    isSelected && styles.prioritySegmentBtnActive,
                   ]}
                 >
                   <Text
@@ -1005,14 +1018,11 @@ export default function TaskDetailScreen() {
       {/* Custom Date Picker Modal */}
       <Modal visible={datePickerVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <ElevatedCard style={styles.pickerModalCard}>
-            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Enter Due Date (YYYY-MM-DD)</Text>
-            <TextInput
+          <ElevatedCard style={[styles.pickerModalCard, Shadows.floating]}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Select Due Date</Text>
+            <CustomDatePicker
               value={customDateInput}
-              onChangeText={setCustomDateInput}
-              placeholder="2026-08-20"
-              placeholderTextColor={colors.textTertiary}
-              style={[styles.modalTextInput, { backgroundColor: colors.secondaryBackground, color: colors.textPrimary }]}
+              onChange={setCustomDateInput}
             />
             <View style={styles.modalBtnRow}>
               <AnimatedPressable
@@ -1318,28 +1328,34 @@ const styles = StyleSheet.create({
   },
   prioritySegmentedTrack: {
     flexDirection: 'row',
-    height: 46,
-    borderRadius: Radii.md,
+    height: 48,
+    borderRadius: Radii.lg,
     borderWidth: 1,
-    padding: 3,
-    gap: 4,
+    padding: 4,
+    gap: 6,
+    alignItems: 'center',
   },
   prioritySegmentBtn: {
     flex: 1,
     height: '100%',
-    borderRadius: Radii.sm + 2,
+    borderRadius: Radii.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   prioritySegmentBtnActive: {
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   prioritySegmentText: {
     ...TypographyScale.caption1,
-    fontSize: 12,
+    fontSize: 12.5,
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   subtaskRow: {
     flexDirection: 'row',

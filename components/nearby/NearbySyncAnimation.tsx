@@ -60,7 +60,7 @@ export const NearbySyncAnimation: React.FC<NearbyAnimationProps> = ({
   verificationCode,
   summary = null,
   errorMessage = '',
-  targetDeviceName = 'Taskora Device',
+  targetDeviceName = 'KIVENTA Device',
   stageName = '',
   onCancel,
   onRetry,
@@ -222,7 +222,7 @@ export const NearbySyncAnimation: React.FC<NearbyAnimationProps> = ({
               Looking for nearby devices...
             </Text>
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Hold another Taskora device close to automatically discover and pair.
+              Hold another KIVENTA device close to automatically discover and pair.
             </Text>
           </View>
         )}
@@ -241,7 +241,7 @@ export const NearbySyncAnimation: React.FC<NearbyAnimationProps> = ({
                   ? 'Very close — Bump phones or tap Connect'
                   : proximity === 'NEAR'
                   ? 'Nearby device within range'
-                  : 'Taskora device detected'}
+                  : 'KIVENTA device detected'}
               </Text>
             </View>
 
@@ -357,7 +357,7 @@ export const NearbySyncAnimation: React.FC<NearbyAnimationProps> = ({
           <View style={styles.centerBlock}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
               {sessionState === 'TIMEOUT'
-                ? 'No nearby Taskora device found'
+                ? 'No nearby KIVENTA device found'
                 : sessionState === 'CANCELLED'
                 ? 'Nearby Sync cancelled'
                 : "Sync couldn't be completed"}

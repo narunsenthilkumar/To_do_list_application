@@ -23,6 +23,8 @@ interface AnimatedPressableProps {
   hitSlop?: Insets | number;
 }
 
+const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
+
 export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
   children,
   onPress,
@@ -62,7 +64,7 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
   });
 
   return (
-    <Pressable
+    <AnimatedPressableBase
       onPress={onPress}
       onLongPress={onLongPress}
       onPressIn={handlePressIn}
@@ -72,8 +74,9 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
       accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
       hitSlop={hitSlop}
+      style={[style, animatedStyle]}
     >
-      <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressableBase>
   );
 };

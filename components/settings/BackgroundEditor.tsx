@@ -385,7 +385,19 @@ export const BackgroundEditor: React.FC = () => {
                   onPress={() => updateBackgroundSettings({ intensity: step })}
                   style={[
                     styles.segmentBtn,
-                    isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
+                    {
+                      backgroundColor: isSelected
+                        ? colors.accent
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: isSelected
+                        ? 'transparent'
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'rgba(0, 0, 0, 0.06)',
+                    },
+                    isSelected && styles.segmentBtnActive,
                   ]}
                 >
                   <Text
@@ -432,7 +444,19 @@ export const BackgroundEditor: React.FC = () => {
                   onPress={() => updateBackgroundSettings({ blur: step })}
                   style={[
                     styles.segmentBtn,
-                    isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
+                    {
+                      backgroundColor: isSelected
+                        ? colors.accent
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: isSelected
+                        ? 'transparent'
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'rgba(0, 0, 0, 0.06)',
+                    },
+                    isSelected && styles.segmentBtnActive,
                   ]}
                 >
                   <Text
@@ -506,7 +530,19 @@ export const BackgroundEditor: React.FC = () => {
                       onPress={() => updateBackgroundSettings({ motionSpeed: spd })}
                       style={[
                         styles.segmentBtn,
-                        isSelected && [styles.segmentBtnActive, { backgroundColor: colors.accent }],
+                        {
+                          backgroundColor: isSelected
+                            ? colors.accent
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.05)'
+                            : 'rgba(0, 0, 0, 0.03)',
+                          borderColor: isSelected
+                            ? 'transparent'
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.06)',
+                        },
+                        isSelected && styles.segmentBtnActive,
                       ]}
                     >
                       <Text
@@ -720,30 +756,34 @@ const styles = StyleSheet.create({
   },
   segmentedTrack: {
     flexDirection: 'row',
-    height: 46,
+    height: 48,
     borderRadius: Radii.lg,
     borderWidth: 1,
-    padding: 3,
-    gap: 3,
+    padding: 4,
+    gap: 6,
     alignItems: 'center',
   },
   segmentBtn: {
     flex: 1,
     height: '100%',
     borderRadius: Radii.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   segmentBtnActive: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 3,
   },
   segmentBtnText: {
-    ...TypographyScale.footnote,
-    letterSpacing: 0.3,
+    ...TypographyScale.caption1,
+    fontSize: 13,
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   toggleRow: {
     flexDirection: 'row',

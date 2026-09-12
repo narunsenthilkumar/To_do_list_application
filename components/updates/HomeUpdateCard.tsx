@@ -97,7 +97,7 @@ export const HomeUpdateCard: React.FC = () => {
               Update Required
             </Text>
             <Text style={[styles.mandatorySubtitle, { color: colors.textTertiary }]}>
-              A critical update ({manifest.latestVersion}) is required to continue using Taskora securely.
+              A critical update ({manifest.latestVersion}) is required to continue using KIVENTA securely.
             </Text>
 
             {manifest.releaseNotes && manifest.releaseNotes.length > 0 && (
@@ -198,7 +198,7 @@ export const HomeUpdateCard: React.FC = () => {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-              Taskora {manifest.latestVersion} Available
+              KIVENTA {manifest.latestVersion} Available
             </Text>
             <Text style={[styles.cardSub, { color: colors.textTertiary }]}>
               New features and performance improvements

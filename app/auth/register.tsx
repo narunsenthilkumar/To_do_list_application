@@ -50,7 +50,7 @@ export default function RegisterScreen() {
         password,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Account Created', 'Your local Taskora account is ready and protected by offline encryption.', [
+      Alert.alert('Account Created', 'Your local KIVENTA account is ready and protected by offline encryption.', [
         {
           text: 'Get Started',
           onPress: () => router.replace('/(tabs)'),

@@ -53,7 +53,7 @@ export class AndroidVoiceEngine implements IVoiceEngine {
         PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
         {
           title: 'Microphone Permission',
-          message: 'Taskora requires microphone access to transcribe and create tasks from your voice.',
+          message: 'KIVENTA requires microphone access to transcribe and create tasks from your voice.',
           buttonNeutral: 'Ask Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'Grant Permission',

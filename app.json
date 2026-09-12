@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Taskora",
+    "name": "KIVENTA",
     "slug": "taskora",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,11 +11,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.taskora.app",
       "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "Taskora uses speech recognition to create tasks from voice.",
-        "NSMicrophoneUsageDescription": "Taskora uses your microphone to transcribe voice tasks.",
-        "NSBluetoothAlwaysUsageDescription": "Taskora uses Bluetooth to discover and sync tasks with nearby devices.",
-        "NSBluetoothPeripheralUsageDescription": "Taskora uses Bluetooth to sync tasks with nearby devices.",
-        "NSMotionUsageDescription": "Taskora uses motion sensors to detect the bring-together sync gesture."
+        "NSSpeechRecognitionUsageDescription": "KIVENTA uses speech recognition to create tasks from voice.",
+        "NSMicrophoneUsageDescription": "KIVENTA uses your microphone to transcribe voice tasks.",
+        "NSBluetoothAlwaysUsageDescription": "KIVENTA uses Bluetooth to discover and sync tasks with nearby devices.",
+        "NSBluetoothPeripheralUsageDescription": "KIVENTA uses Bluetooth to sync tasks with nearby devices.",
+        "NSMotionUsageDescription": "KIVENTA uses motion sensors to detect the bring-together sync gesture."
       }
     },
     "android": {
@@ -69,8 +69,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Taskora uses your microphone to transcribe and create tasks from your voice.",
-          "speechRecognitionPermission": "Taskora uses on-device speech recognition to transcribe your tasks."
+          "microphonePermission": "KIVENTA uses your microphone to transcribe and create tasks from your voice.",
+          "speechRecognitionPermission": "KIVENTA uses on-device speech recognition to transcribe your tasks."
         }
       ]
     ],

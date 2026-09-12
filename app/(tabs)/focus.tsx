@@ -170,11 +170,17 @@ export default function FocusScreen() {
         <View style={styles.innerContentWrapper}>
           {/* Header */}
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerLeft}>
               <Text style={[styles.title, { color: colors.textPrimary }]}>Focus Mode</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {completedSessionsToday} Pomodoro sessions today
-              </Text>
+              <View style={styles.subtitleRow}>
+                <View style={[styles.modeBadge, { backgroundColor: modeColor + '18' }]}>
+                  <Target size={12} color={modeColor} style={{ marginRight: 4 }} />
+                  <Text style={[styles.modeBadgeText, { color: modeColor }]}>{getModeTitle()}</Text>
+                </View>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {completedSessionsToday} {completedSessionsToday === 1 ? 'session' : 'sessions'} today
+                </Text>
+              </View>
             </View>
 
             <View style={styles.headerRightRow}>
@@ -186,8 +192,9 @@ export default function FocusScreen() {
                   router.push('/settings/focus-shield' as any);
                 }}
                 style={[styles.screensaverBtn, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityLabel="Focus Shield"
               >
-                <ShieldAlert size={16} color={colors.accent} style={{ marginRight: 4 }} />
+                <ShieldAlert size={15} color={colors.accent} style={{ marginRight: 4 }} />
                 <Text style={[styles.screensaverBtnText, { color: colors.textPrimary }]}>Shield</Text>
               </AnimatedPressable>
 
@@ -199,15 +206,11 @@ export default function FocusScreen() {
                   setScreensaverVisible(true);
                 }}
                 style={[styles.screensaverBtn, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityLabel="Clock Screensaver"
               >
-                <Clock size={16} color={colors.accent} style={{ marginRight: 4 }} />
+                <Clock size={15} color={colors.accent} style={{ marginRight: 4 }} />
                 <Text style={[styles.screensaverBtnText, { color: colors.textPrimary }]}>Clock</Text>
               </AnimatedPressable>
-
-              <View style={[styles.modeBadge, { backgroundColor: modeColor + '18' }]}>
-                <Target size={14} color={modeColor} style={{ marginRight: 4 }} />
-                <Text style={[styles.modeBadgeText, { color: modeColor }]}>{getModeTitle()}</Text>
-              </View>
             </View>
           </View>
 
@@ -540,16 +543,28 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xs,
   },
+  headerLeft: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.xs + 2,
+    marginTop: 4,
+  },
   headerRightRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs + 2,
+    flexShrink: 0,
   },
   screensaverBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
     borderRadius: Radii.pill,
   },
   screensaverBtnText: {
@@ -560,18 +575,17 @@ const styles = StyleSheet.create({
     ...TypographyScale.largeTitle,
   },
   subtitle: {
-    ...TypographyScale.footnote,
-    marginTop: 2,
+    ...TypographyScale.caption1,
   },
   modeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 1,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 2,
     borderRadius: Radii.pill,
   },
   modeBadgeText: {
-    ...TypographyScale.caption1,
+    ...TypographyScale.caption2,
     fontWeight: '700',
   },
   scrollContent: {

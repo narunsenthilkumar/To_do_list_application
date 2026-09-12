@@ -6,12 +6,12 @@ const fs = require('fs');
 module.exports = {
   packagerConfig: {
     asar: true,
-    name: 'Taskora',
-    productName: 'Taskora',
+    name: 'KIVENTA',
+    productName: 'KIVENTA',
     executableName: 'taskora',
     appBundleId: 'com.taskora.app',
     appCategoryType: 'public.app-category.productivity',
-    appCopyright: 'Copyright © 2026 Taskora',
+    appCopyright: 'Copyright © 2026 KIVENTA',
     icon: path.resolve(__dirname, 'assets/branding/taskora-icon'),
     prune: true,
     afterCopy: [
@@ -67,10 +67,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        name: 'Taskora',
-        authors: 'Taskora',
+        name: 'KIVENTA',
+        authors: 'KIVENTA',
         description: 'Apple-inspired Local-First Smart Task Management',
-        setupExe: 'Taskora Setup.exe',
+        setupExe: 'KIVENTA Setup.exe',
         setupIcon: path.resolve(__dirname, 'assets/branding/taskora-icon.ico'),
       },
     },

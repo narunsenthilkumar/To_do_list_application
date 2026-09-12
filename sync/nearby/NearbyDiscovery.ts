@@ -42,7 +42,7 @@ export class NearbyDiscovery {
         eventEmitter.addListener('onDeviceDiscovered', (data: any) => {
           this.ingestDiscoveredDevice({
             deviceId: data.id,
-            deviceName: data.name || 'Taskora Device',
+            deviceName: data.name || 'KIVENTA Device',
             platform: 'android',
             rssi: data.rssi || -60,
           });

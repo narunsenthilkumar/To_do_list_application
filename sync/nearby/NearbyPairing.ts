@@ -75,7 +75,7 @@ export class NearbyPairing {
       return {
         valid: false,
         errorCode: 'PROTOCOL_VERSION_MISMATCH',
-        errorMessage: `Incompatible Taskora protocol version (Peer: v${message.protocolVersion}, Local: v${CURRENT_NEARBY_PROTOCOL_VERSION}). Please update Taskora on both devices.`,
+        errorMessage: `Incompatible KIVENTA protocol version (Peer: v${message.protocolVersion}, Local: v${CURRENT_NEARBY_PROTOCOL_VERSION}). Please update KIVENTA on both devices.`,
       };
     }
 

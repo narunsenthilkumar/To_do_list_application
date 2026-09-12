@@ -44,6 +44,7 @@ import { useTaskora, useTheme } from '../../store/useTaskora';
 import { safeHaptics } from '../../utils/haptics';
 import { safeGoBack } from '../../utils/navigation';
 import { CustomTimePicker } from '../../components/common/CustomTimePicker';
+import { CustomDatePicker } from '../../components/common/CustomDatePicker';
 import { formatTaskTime } from '../../utils/timeFormatter';
 import {
   NaturalLanguageParser,
@@ -100,6 +101,33 @@ export default function QuickAddModal() {
 
   const [timePickerModalVisible, setTimePickerModalVisible] = useState(false);
   const [customTimeInput, setCustomTimeInput] = useState('17:00');
+
+  const [datePickerModalVisible, setDatePickerModalVisible] = useState(false);
+  const [customDateInput, setCustomDateInput] = useState(getTodayDateString());
+
+  const isCustomDate = Boolean(
+    dueDate &&
+    dueDate !== getTodayDateString() &&
+    dueDate !== getTomorrowDateString()
+  );
+
+  const formatDisplayDate = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+        });
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -190,7 +218,7 @@ export default function QuickAddModal() {
     if (permStatus === 'blocked') {
       Alert.alert(
         'Microphone Access Needed',
-        'Microphone access is disabled for Taskora. You can enable it in system settings to capture tasks using your voice.',
+        'Microphone access is disabled for KIVENTA. You can enable it in system settings to capture tasks using your voice.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open Settings', onPress: () => VoiceService.openSettings() },
@@ -203,7 +231,7 @@ export default function QuickAddModal() {
     if (permStatus === 'denied') {
       Alert.alert(
         'Microphone Access Needed',
-        'Taskora needs microphone access to create tasks using your voice.',
+        'KIVENTA needs microphone access to create tasks using your voice.',
         [
           { text: 'Not Now', style: 'cancel' },
           { text: 'Try Again', onPress: () => startVoiceInput() },
@@ -566,7 +594,6 @@ export default function QuickAddModal() {
             {[
               { label: 'Today', dateStr: getTodayDateString(), icon: Calendar },
               { label: 'Tomorrow', dateStr: getTomorrowDateString(), icon: Calendar },
-              { label: 'No Date', dateStr: undefined, icon: Clock },
             ].map((item) => {
               const isSelected = dueDate === item.dateStr;
               const IconComp = item.icon;
@@ -601,6 +628,82 @@ export default function QuickAddModal() {
                 </AnimatedPressable>
               );
             })}
+
+            {/* Custom Pick Date Button */}
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCustomDateInput(dueDate || getTodayDateString());
+                setDatePickerModalVisible(true);
+              }}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: isCustomDate ? colors.accent : colors.secondaryBackground,
+                },
+              ]}
+              accessibilityLabel="Pick custom due date"
+            >
+              <Calendar
+                size={14}
+                color={isCustomDate ? '#FFFFFF' : colors.textSecondary}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: isCustomDate ? '#FFFFFF' : colors.textSecondary },
+                ]}
+              >
+                {isCustomDate ? formatDisplayDate(dueDate) : 'Pick Date...'}
+              </Text>
+            </AnimatedPressable>
+
+            {/* No Date Chip */}
+            <AnimatedPressable
+              profile="smallControl"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setDueDate(undefined);
+              }}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: !dueDate ? colors.accent : colors.secondaryBackground,
+                },
+              ]}
+              accessibilityLabel="No due date"
+            >
+              <Clock
+                size={14}
+                color={!dueDate ? '#FFFFFF' : colors.textSecondary}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: !dueDate ? '#FFFFFF' : colors.textSecondary },
+                ]}
+              >
+                No Date
+              </Text>
+            </AnimatedPressable>
+
+            {/* Clear custom date if selected */}
+            {isCustomDate && (
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setDueDate(undefined);
+                }}
+                style={[styles.chip, { backgroundColor: colors.secondaryBackground }]}
+                accessibilityLabel="Clear date"
+              >
+                <X size={13} color={colors.textTertiary} />
+              </AnimatedPressable>
+            )}
           </View>
 
           {/* Due Time Selector Row */}
@@ -681,34 +784,62 @@ export default function QuickAddModal() {
 
           {/* Priority Row */}
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>Priority</Text>
-          <View style={styles.chipsRow}>
-            {(['none', 'low', 'medium', 'high', 'urgent'] as PriorityLevel[]).map((p) => {
-              const isSelected = priority === p;
+          <View
+            style={[
+              styles.prioritySegmentedTrack,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
+          >
+            {[
+              { id: 'none', label: 'None', color: colors.accent },
+              { id: 'low', label: 'Low', color: '#38BDF8' },
+              { id: 'medium', label: 'Medium', color: '#FBBF24' },
+              { id: 'high', label: 'High', color: '#FB923C' },
+              { id: 'urgent', label: 'Urgent', color: '#F87171' },
+            ].map(({ id: pId, label, color: pColor }) => {
+              const isSelected = priority === pId;
               return (
                 <AnimatedPressable
-                  key={p}
+                  key={pId}
                   profile="smallControl"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Priority ${label}`}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setPriority(p);
+                    setPriority(pId as PriorityLevel);
                   }}
                   style={[
-                    styles.priorityChip,
+                    styles.prioritySegmentBtn,
                     {
-                      backgroundColor: isSelected ? colors.accent : colors.secondaryBackground,
+                      backgroundColor: isSelected
+                        ? pColor
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: isSelected
+                        ? 'transparent'
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'rgba(0, 0, 0, 0.06)',
                     },
+                    isSelected && styles.prioritySegmentBtnActive,
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
                     style={[
-                      styles.chipText,
+                      styles.prioritySegmentText,
                       {
                         color: isSelected ? '#FFFFFF' : colors.textSecondary,
-                        textTransform: 'capitalize',
+                        fontWeight: isSelected ? '800' : '600',
                       },
                     ]}
                   >
-                    {p}
+                    {label}
                   </Text>
                 </AnimatedPressable>
               );
@@ -805,6 +936,49 @@ export default function QuickAddModal() {
         </View>
 
       </Animated.View>
+
+      {/* Custom Date Picker Modal */}
+      <Modal visible={datePickerModalVisible} transparent animationType="fade">
+        <View style={styles.voiceOverlay}>
+          <BlurView intensity={30} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View style={[styles.pickerModalCard, { backgroundColor: colors.elevatedCard }, Shadows.floating]}>
+            <Text style={[styles.modalHeading, { color: colors.textPrimary }]}>Select Due Date</Text>
+            <CustomDatePicker
+              value={customDateInput}
+              onChange={setCustomDateInput}
+            />
+            <View style={styles.modalBtnRow}>
+              <AnimatedPressable
+                profile="smallControl"
+                onPress={() => setDatePickerModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel date selection"
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: colors.secondaryBackground,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                ]}
+              >
+                <Text style={[styles.modalCancelBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                profile="primaryButton"
+                onPress={() => {
+                  setDueDate(customDateInput.trim());
+                  setDatePickerModalVisible(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Set date"
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={styles.modalConfirmBtnText}>Set Date</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Custom Time Picker Modal */}
       <Modal visible={timePickerModalVisible} transparent animationType="fade">
@@ -1074,6 +1248,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radii.pill,
+  },
+  prioritySegmentedTrack: {
+    flexDirection: 'row',
+    height: 48,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    padding: 4,
+    gap: 6,
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  prioritySegmentBtn: {
+    flex: 1,
+    height: '100%',
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  prioritySegmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  prioritySegmentText: {
+    ...TypographyScale.caption1,
+    fontSize: 12.5,
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   chipText: {
     ...TypographyScale.footnote,

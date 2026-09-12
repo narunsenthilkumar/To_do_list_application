@@ -147,7 +147,7 @@ export const WindowsScreenSaver: React.FC<WindowsScreenSaverProps> = ({
         </View>
 
         <View style={styles.bottomHint}>
-          <Text style={styles.bottomHintText}>Press any key or click to resume Taskora</Text>
+          <Text style={styles.bottomHintText}>Press any key or click to resume KIVENTA</Text>
         </View>
       </Pressable>
     </Modal>

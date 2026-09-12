@@ -138,7 +138,7 @@ export const WindowsDesktopSettings: React.FC<WindowsDesktopSettingsProps> = ({
     { id: 'screensaver', label: 'Screen Saver', icon: <Clock size={16} /> },
     { id: 'shortcuts', label: 'Keyboard Shortcuts', icon: <Command size={16} /> },
     { id: 'privacy', label: 'Privacy & Diagnostics', icon: <ShieldCheck size={16} /> },
-    { id: 'about', label: 'About Taskora', icon: <Info size={16} /> },
+    { id: 'about', label: 'About KIVENTA', icon: <Info size={16} /> },
   ];
 
   return (
@@ -853,7 +853,7 @@ export const WindowsDesktopSettings: React.FC<WindowsDesktopSettingsProps> = ({
           <View style={styles.tabContent}>
             <Text style={[styles.heading, { color: colors.textPrimary }]}>Privacy & Local Storage</Text>
             <Text style={[styles.subheading, { color: colors.textTertiary }]}>
-              Taskora is 100% offline-first. Your tasks never leave your device without explicit pairing.
+              KIVENTA is 100% offline-first. Your tasks never leave your device without explicit pairing.
             </Text>
 
             <View
@@ -887,9 +887,9 @@ export const WindowsDesktopSettings: React.FC<WindowsDesktopSettingsProps> = ({
         {/* About Tab */}
         {activeCategory === 'about' && (
           <View style={styles.tabContent}>
-            <Text style={[styles.heading, { color: colors.textPrimary }]}>About Taskora</Text>
+            <Text style={[styles.heading, { color: colors.textPrimary }]}>About KIVENTA</Text>
             <Text style={[styles.subheading, { color: colors.textTertiary }]}>
-              Taskora for Windows Desktop — v1.0.0
+              KIVENTA for Windows Desktop — v1.0.0
             </Text>
 
             <View
@@ -903,7 +903,7 @@ export const WindowsDesktopSettings: React.FC<WindowsDesktopSettingsProps> = ({
               ]}
             >
               <Text style={[styles.aboutText, { color: colors.textPrimary }]}>
-                Taskora is an Apple-inspired, privacy-first, local-first personal productivity and task management suite.
+                KIVENTA is an Apple-inspired, privacy-first, local-first personal productivity and task management suite.
               </Text>
               <Text style={[styles.aboutMeta, { color: colors.textTertiary }]}>
                 Engineered with React Native Web, Electron Windows Runtime, and Local-First CRDT Synchronization.

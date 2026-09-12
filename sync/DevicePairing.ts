@@ -224,7 +224,7 @@ export class DevicePairing {
       version: 1,
       type: 'TASKORA_ACCOUNT_PAIRING',
       accountId: primaryAccount ? primaryAccount.userId : session.userId,
-      accountName: primaryAccount ? primaryAccount.displayName : session.displayName || 'Taskora User',
+      accountName: primaryAccount ? primaryAccount.displayName : session.displayName || 'KIVENTA User',
       email: primaryAccount ? primaryAccount.email : session.email || '',
       senderDeviceId: deviceId,
       senderDeviceName: deviceName,
@@ -285,7 +285,7 @@ export class DevicePairing {
       return {
         isValid: false,
         errorCode: 'INVALID_PAYLOAD',
-        errorMessage: 'Invalid Taskora pairing payload type.',
+        errorMessage: 'Invalid KIVENTA pairing payload type.',
       };
     }
 
@@ -293,7 +293,7 @@ export class DevicePairing {
       return {
         isValid: false,
         errorCode: 'UNSUPPORTED_VERSION',
-        errorMessage: `Unsupported pairing version (${payload.version}). Please update Taskora.`,
+        errorMessage: `Unsupported pairing version (${payload.version}). Please update KIVENTA.`,
       };
     }
 

@@ -171,7 +171,7 @@ export default function PrivacyDiagnosticsScreen() {
                 </Text>
               </View>
               <Text style={[styles.privacyDesc, { color: colors.textSecondary }]}>
-                Taskora operates 100% offline. No telemetry, audio, or database records leave your device.
+                KIVENTA operates 100% offline. No telemetry, audio, or database records leave your device.
               </Text>
               <View style={styles.pointsList}>
                 <View style={styles.pointRow}>

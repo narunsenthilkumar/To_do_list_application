@@ -183,7 +183,7 @@ export class WindowsVoiceEngine implements IVoiceEngine {
         console.error('[MIC ERROR] Microphone acquisition failed:', err);
         this.lastError = err.message || 'Microphone acquisition failed';
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          onError('Microphone permission was denied. Allow Taskora in Windows settings.');
+          onError('Microphone permission was denied. Allow KIVENTA in Windows settings.');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           onError('No microphone was detected on this device.');
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {

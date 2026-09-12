@@ -43,7 +43,7 @@ export class DeviceIdService {
     if (Platform.OS === 'ios') {
       return 'iOS Device';
     }
-    return 'Taskora Device';
+    return 'KIVENTA Device';
   }
 
   /**

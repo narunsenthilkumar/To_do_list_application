@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.taskora.app",
-  "productName": "Taskora",
-  "copyright": "Copyright © 2026 Taskora",
+  "productName": "KIVENTA",
+  "copyright": "Copyright © 2026 KIVENTA",
   "directories": {
     "output": "dist-electron"
   },
@@ -31,7 +31,7 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Taskora",
+    "shortcutName": "KIVENTA",
     "runAfterFinish": true
   }
 }

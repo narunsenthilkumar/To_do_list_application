@@ -89,7 +89,7 @@ export class NotificationExperienceManager {
     timeFormatted: string,
     isRunning: boolean
   ): Promise<string | undefined> {
-    const title = `Taskora Focus • ${timeFormatted}`;
+    const title = `KIVENTA Focus • ${timeFormatted}`;
     const body = taskTitle ? `Task: ${taskTitle} (${isRunning ? 'Active' : 'Paused'})` : `Status: ${isRunning ? 'In Progress' : 'Paused'}`;
 
     return await this.presentAdaptiveNotification({

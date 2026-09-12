@@ -47,3 +47,5 @@ dist-electron/
 *.asar
 # Local Netlify folder
 .netlify
+
+.vercel

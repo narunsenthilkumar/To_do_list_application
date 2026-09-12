@@ -19,7 +19,7 @@ export default function OnboardingScreen() {
     {
       icon: Sparkles,
       title: 'Organize your life.\nOne task at a time.',
-      subtitle: 'Taskora brings Apple-inspired clarity, fluid gestures, and instant natural language task capture to your daily workflow.',
+      subtitle: 'KIVENTA brings Apple-inspired clarity, fluid gestures, and instant natural language task capture to your daily workflow.',
       color: colors.accent,
       permissionType: null,
       actionText: 'Get Started',
@@ -27,7 +27,7 @@ export default function OnboardingScreen() {
     {
       icon: Bell,
       title: 'Timely Reminders.\nNever miss what matters.',
-      subtitle: 'Allow Taskora to send you punctual notifications for upcoming tasks, daily reviews, and deadline reminders.',
+      subtitle: 'Allow KIVENTA to send you punctual notifications for upcoming tasks, daily reviews, and deadline reminders.',
       color: colors.accent,
       permissionType: 'notifications' as const,
       actionText: 'Enable Notifications',
@@ -43,18 +43,18 @@ export default function OnboardingScreen() {
     {
       icon: Radio,
       title: 'Nearby Sync.\nInstant Device Sharing.',
-      subtitle: 'Seamlessly discover and synchronize tasks with nearby Taskora devices using secure local Bluetooth transfer.',
+      subtitle: 'Seamlessly discover and synchronize tasks with nearby KIVENTA devices using secure local Bluetooth transfer.',
       color: colors.success,
       permissionType: 'bluetooth' as const,
       actionText: 'Enable Nearby Sync',
     },
     {
       icon: Target,
-      title: 'You are all set!\nWelcome to Taskora.',
+      title: 'You are all set!\nWelcome to KIVENTA.',
       subtitle: 'Experience lightning-fast offline-first productivity, personalized themes, and powerful local-first synchronization.',
       color: colors.accent,
       permissionType: null,
-      actionText: 'Enter Taskora',
+      actionText: 'Enter KIVENTA',
     },
   ];
 

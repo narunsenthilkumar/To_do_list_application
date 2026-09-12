@@ -62,7 +62,7 @@ export default function WidgetsScreen() {
     }
 
     Alert.alert(
-      `Add Taskora Widget (${selectedSize.toUpperCase()})`,
+      `Add KIVENTA Widget (${selectedSize.toUpperCase()})`,
       `${capability.instructions.join('\n\n')}`,
       [{ text: 'Got it', style: 'default' }]
     );
@@ -124,7 +124,19 @@ export default function WidgetsScreen() {
                     }}
                     style={[
                       styles.segmentButton,
-                      isSelected && [styles.segmentButtonActive, { backgroundColor: colors.accent }],
+                      {
+                        backgroundColor: isSelected
+                          ? colors.accent
+                          : isDark
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'rgba(0, 0, 0, 0.03)',
+                        borderColor: isSelected
+                          ? 'transparent'
+                          : isDark
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(0, 0, 0, 0.06)',
+                      },
+                      isSelected && styles.segmentButtonActive,
                     ]}
                   >
                     <Text
@@ -160,7 +172,7 @@ export default function WidgetsScreen() {
               style={[styles.addWidgetBtn, { backgroundColor: colors.accent }]}
             >
               <LayoutGrid size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.addWidgetBtnText}>Add Taskora Widget</Text>
+              <Text style={styles.addWidgetBtnText}>Add KIVENTA Widget</Text>
             </AnimatedPressable>
 
             {/* How to add widgets instructions */}
@@ -246,6 +258,7 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     marginBottom: Spacing.lg,
+    gap: 6,
   },
   segmentButton: {
     flex: 1,
@@ -253,16 +266,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radii.pill,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
   },
   segmentButtonActive: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 3,
   },
   segmentText: {
     ...TypographyScale.footnote,
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   stageContainer: {
     alignItems: 'center',

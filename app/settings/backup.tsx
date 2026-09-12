@@ -100,7 +100,7 @@ export default function BackupScreen() {
             await RestoreService.restoreFromSnapshot(snap.id);
             await loadSnapshots();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('Restored', 'Taskora data restored from snapshot.');
+            Alert.alert('Restored', 'KIVENTA data restored from snapshot.');
           },
         },
       ]
@@ -134,14 +134,14 @@ export default function BackupScreen() {
         setExportSuccessModal({
           visible: true,
           title: 'Export Complete',
-          subtitle: `Your Taskora backup with ${result.itemCount} tasks is ready to share or save.`,
+          subtitle: `Your KIVENTA backup with ${result.itemCount} tasks is ready to share or save.`,
           filename: result.filename,
         });
       }
     } catch (e: any) {
       setExportErrorModal({
         visible: true,
-        message: e?.message || 'Taskora could not create the backup JSON file.',
+        message: e?.message || 'KIVENTA could not create the backup JSON file.',
         retryAction: handleExportJSON,
       });
     } finally {
@@ -168,7 +168,7 @@ export default function BackupScreen() {
     } catch (e: any) {
       setExportErrorModal({
         visible: true,
-        message: e?.message || 'Taskora could not create the tasks CSV file.',
+        message: e?.message || 'KIVENTA could not create the tasks CSV file.',
         retryAction: handleExportCSV,
       });
     } finally {
@@ -185,7 +185,7 @@ export default function BackupScreen() {
       if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).electronAPI?.openFile) {
         const res = await (window as any).electronAPI.openFile({
           filters: [
-            { name: 'Taskora Backup (*.json)', extensions: ['json'] },
+            { name: 'KIVENTA Backup (*.json)', extensions: ['json'] },
             { name: 'All Files (*.*)', extensions: ['*'] },
           ],
         });
@@ -360,7 +360,7 @@ export default function BackupScreen() {
                     Restore Backup
                   </Text>
                   <Text style={[styles.actionSub, { color: colors.textTertiary }]} numberOfLines={2}>
-                    Select a Taskora_Backup.json file to restore
+                    Select a KIVENTA_Backup.json file to restore
                   </Text>
                 </View>
               </AnimatedPressable>
@@ -480,7 +480,7 @@ export default function BackupScreen() {
               {previewSummary ? (
                 <View style={styles.previewWrap}>
                   <Text style={[styles.previewDesc, { color: colors.textSecondary }]}>
-                    Verified Taskora backup. Review items before restoring:
+                    Verified KIVENTA backup. Review items before restoring:
                   </Text>
 
                   {/* Summary Grid Badges */}
@@ -647,7 +647,7 @@ export default function BackupScreen() {
             </View>
             <Text style={[styles.feedbackTitle, { color: colors.textPrimary }]}>Unable to Export</Text>
             <Text style={[styles.feedbackSub, { color: colors.textSecondary }]}>
-              {exportErrorModal?.message || 'Taskora could not generate the requested file.'}
+              {exportErrorModal?.message || 'KIVENTA could not generate the requested file.'}
             </Text>
 
             <View style={styles.modalBtnRow}>

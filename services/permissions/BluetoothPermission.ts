@@ -118,7 +118,7 @@ export class BluetoothPermission {
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           {
             title: 'Nearby Bluetooth Proximity',
-            message: 'Taskora needs location access to discover nearby Taskora devices via Bluetooth.',
+            message: 'KIVENTA needs location access to discover nearby KIVENTA devices via Bluetooth.',
             buttonPositive: 'Allow',
             buttonNegative: 'Deny',
           }

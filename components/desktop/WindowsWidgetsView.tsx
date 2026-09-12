@@ -27,7 +27,7 @@ export const WindowsWidgetsView: React.FC = () => {
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Desktop Widgets & Glanceables</Text>
       <Text style={[styles.sectionSubtitle, { color: colors.textTertiary }]}>
-        Configure compact glanceable widgets powered by Taskora's local persistence engine.
+        Configure compact glanceable widgets powered by KIVENTA's local persistence engine.
       </Text>
 
       {/* Widget Tabs */}

@@ -14,7 +14,7 @@ export class WidgetCapability {
       return {
         isSupported: true,
         platform: 'electron',
-        title: 'Taskora Desktop Mini-Widget',
+        title: 'KIVENTA Desktop Mini-Widget',
         description: 'Interactive compact HUD widget and system tray status for Windows.',
         instructions: [
           'Use the in-app Widget Studio to preview and customize your desktop HUD widget.',
@@ -28,11 +28,11 @@ export class WidgetCapability {
         isSupported: true,
         platform: 'android',
         title: 'Android Home Screen Widgets',
-        description: 'Live interactive Taskora widgets for your Android Home Screen and Always-On Display.',
+        description: 'Live interactive KIVENTA widgets for your Android Home Screen and Always-On Display.',
         instructions: [
           'Long-press any empty space on your Android Home Screen.',
           'Select "Widgets" from the bottom popup menu.',
-          'Scroll to "Taskora" and choose Small, Medium, or Large.',
+          'Scroll to "KIVENTA" and choose Small, Medium, or Large.',
           'Drag the widget to your desired home screen location.',
         ],
       };
@@ -47,7 +47,7 @@ export class WidgetCapability {
         instructions: [
           'Touch and hold an empty area on your Home Screen until the apps jiggle.',
           'Tap the "+" button in the upper-left corner.',
-          'Search for "Taskora" and select your preferred widget size.',
+          'Search for "KIVENTA" and select your preferred widget size.',
           'Tap "Add Widget" and place it on your screen.',
         ],
       };
@@ -59,7 +59,7 @@ export class WidgetCapability {
       title: 'Web & Desktop Widget Preview',
       description: 'Interactive widget simulator and quick-action companion.',
       instructions: [
-        'Preview and test live widget states directly in the Taskora Widget Studio.',
+        'Preview and test live widget states directly in the KIVENTA Widget Studio.',
         'Widget data is kept synchronized in real time with your local tasks and focus sessions.',
       ],
     };

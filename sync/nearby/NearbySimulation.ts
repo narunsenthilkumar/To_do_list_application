@@ -74,7 +74,7 @@ export class NearbySimulation {
         payload: {
           id: `task-sim-${Date.now()}-1`,
           title: 'Review Nearby Sync specifications',
-          description: 'Synced locally via Taskora Nearby Bump-to-Share protocol',
+          description: 'Synced locally via KIVENTA Nearby Bump-to-Share protocol',
           status: 'pending',
           priority: 'high',
           category: 'Work',
@@ -97,7 +97,7 @@ export class NearbySimulation {
         lamportClock: 13,
         payload: {
           id: `task-sim-${Date.now()}-2`,
-          title: 'Prepare Taskora cross-device demo',
+          title: 'Prepare KIVENTA cross-device demo',
           description: 'Verify local-first CRDT merge without network dependency',
           status: 'pending',
           priority: 'medium',

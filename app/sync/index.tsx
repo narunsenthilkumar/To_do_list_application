@@ -417,7 +417,7 @@ export default function SyncScreen() {
               <View style={styles.nearbyInfo}>
                 <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>Bring Devices Together</Text>
                 <Text style={[styles.nearbySubtitle, { color: colors.textSecondary }]}>
-                  Hold two Taskora phones close together or bump them gently to synchronize tasks locally without any internet connection.
+                  Hold two KIVENTA phones close together or bump them gently to synchronize tasks locally without any internet connection.
                 </Text>
               </View>
             </View>
@@ -451,7 +451,7 @@ export default function SyncScreen() {
               <QrCode size={36} color={colors.textTertiary} style={{ marginBottom: Spacing.sm }} />
               <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Paired Devices</Text>
               <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                Connect your Android phone, Windows PC, or Web browser to securely synchronize your Taskora account.
+                Connect your Android phone, Windows PC, or Web browser to securely synchronize your KIVENTA account.
               </Text>
               <AnimatedPressable
                 profile="smallControl"
@@ -539,7 +539,7 @@ export default function SyncScreen() {
               <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Offline-First Architecture</Text>
             </View>
             <Text style={[styles.noticeDesc, { color: colors.textSecondary }]}>
-              Taskora uses an offline-first architecture. All task operations are saved locally immediately and queued
+              KIVENTA uses an offline-first architecture. All task operations are saved locally immediately and queued
               for deterministic synchronization. No third-party cloud database or server tracking is used.
             </Text>
           </ElevatedCard>
@@ -907,7 +907,7 @@ export default function SyncScreen() {
               <Text style={[styles.confirmMessage, { color: colors.textSecondary }]}>
                 This will disconnect{' '}
                 <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{deviceToRemove?.deviceName}</Text> from
-                your Taskora account. Local data on that device will not be deleted.
+                your KIVENTA account. Local data on that device will not be deleted.
               </Text>
               <View style={styles.confirmBtnRow}>
                 <AnimatedPressable
@@ -950,7 +950,7 @@ export default function SyncScreen() {
                 Sign Out & Disconnect This Device?
               </Text>
               <Text style={[styles.confirmMessage, { color: colors.textSecondary }]}>
-                This will sign out this installation from your Taskora account. Local tasks and data on this device will
+                This will sign out this installation from your KIVENTA account. Local tasks and data on this device will
                 remain intact.
               </Text>
               <View style={styles.confirmBtnRow}>

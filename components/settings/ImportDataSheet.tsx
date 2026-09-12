@@ -143,7 +143,7 @@ export const ImportDataSheet: React.FC<ImportDataSheetProps> = ({
             <View style={styles.sheetHeader}>
               <View style={styles.titleRow}>
                 <Upload size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Import Taskora Backup</Text>
+                <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Import KIVENTA Backup</Text>
               </View>
               <AnimatedPressable profile="smallControl" onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close dialog">
                 <X size={20} color={colors.textTertiary} />
@@ -172,7 +172,7 @@ export const ImportDataSheet: React.FC<ImportDataSheetProps> = ({
                 </AnimatedPressable>
 
                 <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
-                  Or paste your Taskora backup JSON string below:
+                  Or paste your KIVENTA backup JSON string below:
                 </Text>
 
                 <TextInput

@@ -178,7 +178,7 @@ export default function FocusShieldModal() {
               style={[styles.primaryActionBtn, { backgroundColor: colors.accent }]}
             >
               <Sparkles size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.primaryActionBtnText}>Return to Taskora Focus</Text>
+              <Text style={styles.primaryActionBtnText}>Return to KIVENTA Focus</Text>
             </AnimatedPressable>
 
             {settings.shieldSettings?.emergencyUnlockAllowed && (

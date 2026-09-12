@@ -21,7 +21,7 @@ export class FocusTimerNotification {
     try {
       // 1. Ongoing Active Focus Session Channel
       await Notifications.setNotificationChannelAsync(FOCUS_NOTIFICATION_CHANNEL_ID, {
-        name: 'Taskora Focus Session',
+        name: 'KIVENTA Focus Session',
         importance: Notifications.AndroidImportance.LOW, // Low so it doesn't chime continuously on updates
         sound: undefined,
         enableVibrate: false,
@@ -83,7 +83,7 @@ export class FocusTimerNotification {
       // Android / Native Expo notification
       if (Platform.OS === 'android' || Platform.OS === 'ios') {
         const notifContent: Notifications.NotificationContentInput = {
-          title: `Taskora — ${modeLabel}`,
+          title: `KIVENTA — ${modeLabel}`,
           body: `${heading} • ${subtitle}`,
           data: {
             type: 'focus_session',

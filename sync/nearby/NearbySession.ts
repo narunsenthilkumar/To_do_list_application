@@ -78,7 +78,7 @@ export class NearbySession {
                     const incomingPayload = JSON.parse(reassembled.data);
                     await NearbyTransfer.processIncomingPayload(
                       incomingPayload,
-                      event.senderDeviceId || 'Taskora Peer',
+                      event.senderDeviceId || 'KIVENTA Peer',
                       Date.now()
                     );
 
@@ -161,7 +161,7 @@ export class NearbySession {
     }
 
     this.setState('SEARCHING');
-    this.notifyProgress(10, 'Looking for nearby Taskora devices...');
+    this.notifyProgress(10, 'Looking for nearby KIVENTA devices...');
 
     // Start motion detector
     await this.motionDetector.start();
@@ -313,7 +313,7 @@ export class NearbySession {
 
       if (scenario === 'TIMEOUT') {
         this.setState('TIMEOUT');
-        this.setError('No nearby Taskora device found');
+        this.setError('No nearby KIVENTA device found');
         return;
       }
 
@@ -322,7 +322,7 @@ export class NearbySession {
       this.notifyDevice(simDevice);
       this.notifyProximity(simDevice.proximity);
       this.setState('DEVICE_FOUND');
-      this.notifyProgress(30, 'Taskora device found');
+      this.notifyProgress(30, 'KIVENTA device found');
 
       if (scenario === 'SUCCESS_WITH_BUMP') {
         setTimeout(() => {
@@ -349,7 +349,7 @@ export class NearbySession {
         this.notifyDevice(device);
         this.notifyProximity(device.proximity);
         this.setState('DEVICE_FOUND');
-        this.notifyProgress(30, 'Taskora device found');
+        this.notifyProgress(30, 'KIVENTA device found');
       }
     });
 
@@ -368,7 +368,7 @@ export class NearbySession {
     this.discovery.onScanTimeout(() => {
       if (this.state === 'SEARCHING' || this.state === 'SCANNING') {
         this.setState('TIMEOUT');
-        this.setError('No nearby Taskora device found');
+        this.setError('No nearby KIVENTA device found');
       }
     });
   }

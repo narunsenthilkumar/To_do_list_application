@@ -219,7 +219,7 @@ export const WindowsDesktopSync: React.FC = () => {
       >
         <Text style={[styles.cardHeading, { color: colors.textPrimary }]}>Pair New Device (Mobile / Tablet)</Text>
         <Text style={[styles.cardSubtext, { color: colors.textTertiary }]}>
-          Generate a 6-digit one-time pairing code to connect your iOS or Android Taskora app.
+          Generate a 6-digit one-time pairing code to connect your iOS or Android KIVENTA app.
         </Text>
 
         <View style={styles.pairingActionRow}>

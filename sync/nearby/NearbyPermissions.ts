@@ -84,7 +84,7 @@ export class NearbyPermissions {
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
             {
               title: 'Bluetooth Proximity Access',
-              message: 'Taskora needs proximity access to find and sync with nearby Taskora devices.',
+              message: 'KIVENTA needs proximity access to find and sync with nearby KIVENTA devices.',
               buttonPositive: 'Allow',
               buttonNegative: 'Cancel',
             }

@@ -82,7 +82,7 @@ export default function SettingsScreen() {
       if (details.state !== 'GRANTED') {
         Alert.alert(
           'Exact Alarms',
-          'Exact alarms allow Taskora to alert you at the scheduled time with high-urgency notifications.',
+          'Exact alarms allow KIVENTA to alert you at the scheduled time with high-urgency notifications.',
           [
             { text: 'Not Now', style: 'cancel' },
             {
@@ -111,7 +111,7 @@ export default function SettingsScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const jsonStr = await Repository.exportBackupJSON();
-    Alert.alert('Data Export Ready', 'Your Taskora backup JSON is ready. You can copy it below or restore it anytime.', [
+    Alert.alert('Data Export Ready', 'Your KIVENTA backup JSON is ready. You can copy it below or restore it anytime.', [
       { text: 'Done', style: 'cancel' },
     ]);
   };
@@ -156,7 +156,7 @@ export default function SettingsScreen() {
   const handleResetAllData = () => {
     Alert.alert(
       'Reset All Data?',
-      'This will permanently delete all tasks, projects, tags, and productivity records, returning Taskora to a clean initial state. This action cannot be undone.',
+      'This will permanently delete all tasks, projects, tags, and productivity records, returning KIVENTA to a clean initial state. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await clearAllData();
-            Alert.alert('Workspace Reset', 'All data has been cleared. Taskora is now completely fresh.');
+            Alert.alert('Workspace Reset', 'All data has been cleared. KIVENTA is now completely fresh.');
           },
         },
       ]
@@ -343,7 +343,7 @@ export default function SettingsScreen() {
                 <Text style={[styles.privacyTitle, { color: colors.textPrimary }]}>Local Intelligence Guarantee</Text>
               </View>
               <Text style={[styles.privacyDesc, { color: colors.textSecondary }]}>
-                Taskora's smart features run 100% locally on your device code. Your task data is never sent to an external AI service or cloud backend.
+                KIVENTA's smart features run 100% locally on your device code. Your task data is never sent to an external AI service or cloud backend.
               </Text>
               <View style={styles.privacyPoints}>
                 <Text style={[styles.privacyPointText, { color: colors.textTertiary }]}>✓ No external AI API keys</Text>
@@ -427,7 +427,7 @@ export default function SettingsScreen() {
                       Incomplete Task Indication
                     </Text>
                     <Text style={[styles.incompleteSubtitle, { color: colors.textTertiary }]}>
-                      How should Taskora remind you?
+                      How should KIVENTA remind you?
                     </Text>
                   </View>
                 </View>
@@ -537,7 +537,7 @@ export default function SettingsScreen() {
                     ? 'Allowed — Local device discovery and sync ready'
                     : permMap.bluetooth.state === 'UNAVAILABLE'
                     ? 'Unsupported on this device platform'
-                    : 'Required to discover nearby Taskora phones'
+                    : 'Required to discover nearby KIVENTA phones'
                 }
                 trailing={
                   <View style={[styles.permBadge, { backgroundColor: permMap.bluetooth.state === 'GRANTED' ? colors.success + '20' : colors.secondaryBackground }]}>
@@ -639,7 +639,7 @@ export default function SettingsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.updateTitle, { color: colors.textPrimary }]}>
-                      Taskora for Android
+                      KIVENTA for Android
                     </Text>
                     <Text style={[styles.updateSub, { color: colors.textTertiary }]}>
                       Installed: v{Constants.expoConfig?.version || '1.0.0'}
@@ -765,7 +765,7 @@ export default function SettingsScreen() {
             <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>ABOUT</Text>
             <ElevatedCard style={[styles.cardSection, { alignItems: 'center', paddingVertical: Spacing.lg }]}>
               <BrandLogo size={56} animated withShadow style={{ marginBottom: Spacing.sm }} />
-              <Text style={[styles.aboutBrandTitle, { color: colors.textPrimary }]}>Taskora</Text>
+              <Text style={[styles.aboutBrandTitle, { color: colors.textPrimary }]}>KIVENTA</Text>
               <Text style={[styles.aboutTagline, { color: colors.textSecondary }]}>Premium Productivity</Text>
               <Text style={[styles.aboutVersion, { color: colors.textTertiary }]}>
                 Version {Constants.expoConfig?.version || '1.0.0'} (Production Build)
@@ -780,7 +780,7 @@ export default function SettingsScreen() {
         visible={importSheetVisible}
         onClose={() => setImportSheetVisible(false)}
         onSuccess={() => {
-          Alert.alert('Data Restored', 'Taskora dataset updated successfully.');
+          Alert.alert('Data Restored', 'KIVENTA dataset updated successfully.');
         }}
       />
     </PrimarySurface>

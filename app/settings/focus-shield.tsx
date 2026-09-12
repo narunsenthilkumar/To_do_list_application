@@ -86,7 +86,7 @@ export default function FocusShieldSettingsScreen() {
     if (val && Platform.OS === 'android' && !isAccessibilityGranted) {
       Alert.alert(
         'Accessibility Permission Required',
-        'Taskora Focus Shield requires Android Accessibility permission to detect when distracting apps are opened during a focus session.\n\nWould you like to open Settings now?',
+        'KIVENTA Focus Shield requires Android Accessibility permission to detect when distracting apps are opened during a focus session.\n\nWould you like to open Settings now?',
         [
           { text: 'Not Now', style: 'cancel' },
           {

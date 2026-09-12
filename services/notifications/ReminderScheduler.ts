@@ -192,7 +192,7 @@ export class ReminderScheduler {
         if (diffMs > 0 && diffMs < 2147483647) {
           setTimeout(() => {
             (window as any).electronAPI.showNotification({
-              title: `Taskora: ${task.title}`,
+              title: `KIVENTA: ${task.title}`,
               body: bodyText,
             });
             if (resolved.isAlarm || indicationMode === 'alarm' || indicationMode === 'both') {
@@ -221,7 +221,7 @@ export class ReminderScheduler {
         if (diffMs > 0 && diffMs < 2147483647) {
           setTimeout(() => {
             if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-              new Notification(`Taskora: ${task.title}`, {
+              new Notification(`KIVENTA: ${task.title}`, {
                 body: bodyText,
                 icon: '/favicon.png',
               });
@@ -273,7 +273,7 @@ export class ReminderScheduler {
       const channelId = isAlarmRequested ? TASK_ALARMS_CHANNEL_ID : TASK_REMINDERS_CHANNEL_ID;
 
       const notifContent: Notifications.NotificationContentInput = {
-        title: `Taskora: ${task.title}`,
+        title: `KIVENTA: ${task.title}`,
         body: bodyText,
         data: {
           type: 'task_reminder',

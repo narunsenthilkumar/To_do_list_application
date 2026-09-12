@@ -128,7 +128,7 @@ export const WindowsDesktopHeader: React.FC<WindowsDesktopHeaderProps> = ({
       {/* Left: Branding */}
       <View style={styles.brandSection}>
         <BrandLogo size={24} />
-        <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>Taskora</Text>
+        <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>KIVENTA</Text>
       </View>
 
       {/* Center: Command Palette Trigger */}

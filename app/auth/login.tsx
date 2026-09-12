@@ -111,7 +111,7 @@ export default function LoginScreen() {
         `Welcome ${validation.payload.accountName}! Restored ${result.tasksImported} tasks and ${result.projectsImported} projects from ${validation.payload.senderDeviceName}.`,
         [
           {
-            text: 'Open Taskora',
+            text: 'Open KIVENTA',
             onPress: () => router.replace('/(tabs)'),
           },
         ]
@@ -139,7 +139,7 @@ export default function LoginScreen() {
         >
           <View style={styles.header}>
             <BrandLogo size={68} animated withShadow style={{ marginBottom: Spacing.sm }} />
-            <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>TASKORA</Text>
+            <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>KIVENTA</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Local-First & Multi-Device Productivity
             </Text>
@@ -148,7 +148,7 @@ export default function LoginScreen() {
           <ElevatedCard style={[styles.formCard, Shadows.card]}>
             <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Welcome Back</Text>
             <Text style={[styles.cardSub, { color: colors.textTertiary }]}>
-              Sign in to your local Taskora account
+              Sign in to your local KIVENTA account
             </Text>
 
             <View style={styles.inputGroup}>

@@ -56,7 +56,7 @@ export const InteractiveWidgetCard: React.FC<InteractiveWidgetCardProps> = ({ si
         <View style={styles.smallHeader}>
           <View style={styles.brandRow}>
             <View style={[styles.brandDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.brandText, { color: colors.textSecondary }]}>TASKORA</Text>
+            <Text style={[styles.brandText, { color: colors.textSecondary }]}>KIVENTA</Text>
           </View>
           <Text style={[styles.dateBadge, { color: colors.textTertiary }]}>{data.todayFormatted}</Text>
         </View>
@@ -145,7 +145,7 @@ export const InteractiveWidgetCard: React.FC<InteractiveWidgetCardProps> = ({ si
           <View>
             <View style={styles.brandRow}>
               <View style={[styles.brandDot, { backgroundColor: colors.accent }]} />
-              <Text style={[styles.brandText, { color: colors.textSecondary }]}>TASKORA TODAY</Text>
+              <Text style={[styles.brandText, { color: colors.textSecondary }]}>KIVENTA TODAY</Text>
             </View>
             <Text style={[styles.mediumGreeting, { color: colors.textPrimary }]}>{data.greeting}</Text>
           </View>
@@ -287,7 +287,7 @@ export const InteractiveWidgetCard: React.FC<InteractiveWidgetCardProps> = ({ si
         <View>
           <View style={styles.brandRow}>
             <View style={[styles.brandDot, { backgroundColor: colors.accent }]} />
-            <Text style={[styles.brandText, { color: colors.textSecondary }]}>TASKORA</Text>
+            <Text style={[styles.brandText, { color: colors.textSecondary }]}>KIVENTA</Text>
           </View>
           <Text style={[styles.largeGreeting, { color: colors.textPrimary }]}>{data.greeting}</Text>
           <Text style={[styles.largeDateSub, { color: colors.textTertiary }]}>{data.todayFormatted}</Text>
@@ -421,7 +421,7 @@ export const InteractiveWidgetCard: React.FC<InteractiveWidgetCardProps> = ({ si
           onPress={() => handleAction('open_today')}
           style={[styles.largeOpenTodayBtn, { backgroundColor: colors.secondaryBackground }]}
         >
-          <Text style={[styles.largeOpenTodayText, { color: colors.textPrimary }]}>Open Taskora</Text>
+          <Text style={[styles.largeOpenTodayText, { color: colors.textPrimary }]}>Open KIVENTA</Text>
           <ChevronRight size={16} color={colors.textSecondary} />
         </AnimatedPressable>
       </View>
